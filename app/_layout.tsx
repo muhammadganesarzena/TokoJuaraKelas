@@ -64,6 +64,19 @@ export default function RootLayout() {
                   options={{ animation: "fade" }}
                 />
 
+                <Stack.Screen
+                  name="LoginScreen/LoginScreen"
+                  options={{ animation: "fade" }}
+                />
+                <Stack.Screen
+                  name="LoginScreen/RegisterScreen"
+                  options={{ animation: "slide_from_right" }}
+                />
+                <Stack.Screen
+                  name="LoginScreen/reset-password"
+                  options={{ animation: "slide_from_right" }}
+                />
+
                 <Stack.Screen name="Homepage/Homepage" />
                 <Stack.Screen
                   name="ProductDetail/ProductDetail"

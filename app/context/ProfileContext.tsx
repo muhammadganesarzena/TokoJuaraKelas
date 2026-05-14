@@ -16,6 +16,7 @@ type ProfileContextType = {
   profile: ProfileType;
   setProfile: (data: ProfileType) => void;
   loadingProfile: boolean;
+  refreshProfile: () => Promise<void>;
 };
 
 const defaultProfile: ProfileType = {
@@ -35,55 +36,115 @@ export const ProfileProvider = ({ children }: any) => {
   const [profile, setProfile] = useState<ProfileType>(defaultProfile);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      setLoadingProfile(true);
-      try {
-        // Ambil user yang sedang login
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+  const mapProfile = (data: any, email: string): ProfileType => ({
+    name: data?.full_name || "",
+    nim: data?.username || "",
+    email: data?.email || email || "",
+    image: null,
+    major: "",
+    dob: "",
+    classOf: "",
+    gender: "",
+  });
 
-        if (!user) return;
+  const fetchProfile = async () => {
+    setLoadingProfile(true);
 
-        // Ambil data dari tabel profiles
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("full_name, username, phone, address")
-          .eq("id", user.id)
-          .single();
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-        if (error) throw error;
-
-        setProfile({
-          name: data.full_name || "",
-          nim: data.username || "",
-          email: user.email || "",
-          image: null,
-          major: "",
-          dob: "",
-          classOf: "",
-          gender: "",
-        });
-      } catch (error) {
-        console.error("Gagal ambil profil:", error);
-      } finally {
-        setLoadingProfile(false);
+      if (!session?.user) {
+        setProfile(defaultProfile);
+        return;
       }
-    };
 
+      const user = session.user;
+      const userEmail = user.email || "";
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, phone, address, email")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setProfile(mapProfile(data, userEmail));
+        return;
+      }
+
+      const fallbackName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        userEmail.split("@")[0] ||
+        "User";
+
+      const fallbackUsername =
+        user.user_metadata?.username ||
+        userEmail.split("@")[0] ||
+        `user_${user.id.slice(0, 8)}`;
+
+      const { data: insertedProfile, error: insertError } = await supabase
+        .from("profiles")
+        .upsert(
+          {
+            id: user.id,
+            full_name: fallbackName,
+            username: fallbackUsername,
+            phone: null,
+            address: null,
+            email: userEmail,
+          },
+          { onConflict: "id" },
+        )
+        .select("id, full_name, username, phone, address, email")
+        .single();
+
+      if (insertError) throw insertError;
+
+      setProfile(mapProfile(insertedProfile, userEmail));
+
+      setProfile(mapProfile(insertedProfile, userEmail));
+
+      setProfile(mapProfile(insertedProfile, userEmail));
+    } catch (error) {
+      console.error("Gagal ambil profil:", error);
+      setProfile(defaultProfile);
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  useEffect(() => {
     fetchProfile();
 
-    // Otomatis refresh jika session berubah (login/logout)
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      fetchProfile();
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!session?.user) {
+          setProfile(defaultProfile);
+          setLoadingProfile(false);
+          return;
+        }
+
+        fetchProfile();
+      },
+    );
 
     return () => listener.subscription.unsubscribe();
   }, []);
 
   return (
-    <ProfileContext.Provider value={{ profile, setProfile, loadingProfile }}>
+    <ProfileContext.Provider
+      value={{
+        profile,
+        setProfile,
+        loadingProfile,
+        refreshProfile: fetchProfile,
+      }}
+    >
       {children}
     </ProfileContext.Provider>
   );

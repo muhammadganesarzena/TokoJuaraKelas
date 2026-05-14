@@ -30,22 +30,62 @@ const LoginScreen: React.FC = () => {
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+
     try {
       const redirectTo = "tokojuarakelas://";
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo, skipBrowserRedirect: false },
-      });
-      if (error) throw error;
-      if (data?.url) {
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
+        options: {
           redirectTo,
-        );
-        if (result.type === "success") {
-          router.replace("/Homepage/Homepage");
-        }
+          skipBrowserRedirect: false,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.url) return;
+
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectTo,
+      );
+
+      if (result.type !== "success") return;
+
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) throw sessionError;
+
+      const user = session?.user;
+
+      if (!user) {
+        router.replace({
+          pathname: "/LoginScreen/RegisterScreen",
+          params: {
+            mode: "google",
+          },
+        });
+
+        return;
       }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+
+      if (!profile) {
+        router.replace("/LoginScreen/RegisterScreen");
+        return;
+      }
+
+      router.replace("/Homepage/Homepage");
     } catch (error: any) {
       Alert.alert("Google Login Error", error.message);
     } finally {
@@ -62,13 +102,16 @@ const LoginScreen: React.FC = () => {
       setEmailError(true);
       valid = false;
     }
+
     if (password.trim() === "") {
       setPasswordError(true);
       valid = false;
     }
+
     if (!valid) return;
 
     setLoading(true);
+
     try {
       const { data: adminData, error: adminError } = await supabase
         .from("admins")
@@ -94,8 +137,9 @@ const LoginScreen: React.FC = () => {
       if (error) {
         const message =
           error.message === "Email not confirmed"
-            ? "Email belum dikonfirmasi. Cek inbox email kamu atau matikan email confirmation di Supabase Auth untuk mode development."
+            ? "Email belum dikonfirmasi. Cek inbox email kamu."
             : error.message;
+
         Alert.alert("Login Gagal", message);
         return;
       }
@@ -108,41 +152,12 @@ const LoginScreen: React.FC = () => {
     }
   };
 
-  const handleForgotPassword = async () => {
-    if (!trimmedEmail) {
-      setEmailError(true);
-      Alert.alert(
-        "Email diperlukan",
-        "Masukkan email akun kamu terlebih dahulu.",
-      );
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        trimmedEmail,
-        {
-          redirectTo: "tokojuarakelas://reset-password",
-        },
-      );
-
-      if (error) throw error;
-
-      Alert.alert(
-        "Email reset dikirim",
-        "Cek inbox atau spam email kamu, lalu buka link reset password.",
-      );
-    } catch (error: any) {
-      Alert.alert("Gagal mengirim reset password", error.message);
-    } finally {
-      setLoading(false);
-    }
+  const handleForgotPassword = () => {
+    router.push("/LoginScreen/reset-password");
   };
 
   return (
     <View style={styles.flex}>
-      {/* Bagian atas hijau */}
       <View style={styles.topSection}>
         <Image
           source={require("../../assets/images/SplashScreen/GuitarLogoWhite.png")}
@@ -153,7 +168,6 @@ const LoginScreen: React.FC = () => {
         <Text style={styles.welcomeSub}>Sign in to continue</Text>
       </View>
 
-      {/* Bagian bawah putih */}
       <View style={[styles.bottomSection, isDark && styles.bottomSectionDark]}>
         <Text style={styles.title}>Sign In</Text>
 
