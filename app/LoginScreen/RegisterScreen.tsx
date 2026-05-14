@@ -44,11 +44,13 @@ const RegisterScreen: React.FC = () => {
   }, []);
 
   const handleRegister = async () => {
+    const trimmedEmail = email.trim().toLowerCase();
+
     if (!fullName.trim() || !username.trim()) {
       Alert.alert("Error", "Nama Lengkap dan Username wajib diisi.");
       return;
     }
-    if (!isGoogleUser && (!email.trim() || !password.trim())) {
+    if (!isGoogleUser && (!trimmedEmail || !password.trim())) {
       Alert.alert("Error", "Email dan Password wajib diisi.");
       return;
     }
@@ -70,7 +72,7 @@ const RegisterScreen: React.FC = () => {
       } else {
         const { data: authData, error: authError } = await supabase.auth.signUp(
           {
-            email: email.trim(),
+            email: trimmedEmail,
             password: password.trim(),
           },
         );
@@ -91,8 +93,22 @@ const RegisterScreen: React.FC = () => {
 
       Alert.alert(
         "Sukses",
-        isGoogleUser ? "Profil berhasil disimpan!" : "Akun berhasil dibuat!",
-        [{ text: "OK", onPress: () => router.replace("/Homepage/Homepage") }],
+        isGoogleUser || (await supabase.auth.getSession()).data.session
+          ? "Akun berhasil dibuat!"
+          : "Akun berhasil dibuat. Jika login gagal, cek email kamu untuk konfirmasi akun atau matikan email confirmation di Supabase Auth.",
+        [
+          {
+            text: "OK",
+            onPress: async () => {
+              const {
+                data: { session },
+              } = await supabase.auth.getSession();
+              router.replace(
+                session ? "/Homepage/Homepage" : "/LoginScreen/LoginScreen",
+              );
+            },
+          },
+        ],
       );
     } catch (error: any) {
       Alert.alert("Registrasi Gagal", error.message);

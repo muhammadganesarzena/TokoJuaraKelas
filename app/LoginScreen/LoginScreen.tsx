@@ -26,6 +26,7 @@ const LoginScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const styles = getStyles(isDark);
+  const trimmedEmail = email.trim().toLowerCase();
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -57,7 +58,7 @@ const LoginScreen: React.FC = () => {
     setEmailError(false);
     setPasswordError(false);
 
-    if (email.trim() === "") {
+    if (trimmedEmail === "") {
       setEmailError(true);
       valid = false;
     }
@@ -69,12 +70,16 @@ const LoginScreen: React.FC = () => {
 
     setLoading(true);
     try {
-      const { data: adminData } = await supabase
+      const { data: adminData, error: adminError } = await supabase
         .from("admins")
         .select("*")
-        .eq("email", email.trim())
+        .eq("email", trimmedEmail)
         .eq("password", password.trim())
-        .single();
+        .maybeSingle();
+
+      if (adminError) {
+        console.warn("Admin login check failed:", adminError.message);
+      }
 
       if (adminData) {
         router.replace("/admin/Dashboard");
@@ -82,18 +87,54 @@ const LoginScreen: React.FC = () => {
       }
 
       const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: trimmedEmail,
         password: password,
       });
 
       if (error) {
-        Alert.alert("Login Gagal", "Email atau Password salah.");
+        const message =
+          error.message === "Email not confirmed"
+            ? "Email belum dikonfirmasi. Cek inbox email kamu atau matikan email confirmation di Supabase Auth untuk mode development."
+            : error.message;
+        Alert.alert("Login Gagal", message);
         return;
       }
 
       router.replace("/Homepage/Homepage");
     } catch {
       Alert.alert("Login Gagal", "Email atau Password salah.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!trimmedEmail) {
+      setEmailError(true);
+      Alert.alert(
+        "Email diperlukan",
+        "Masukkan email akun kamu terlebih dahulu.",
+      );
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        trimmedEmail,
+        {
+          redirectTo: "tokojuarakelas://reset-password",
+        },
+      );
+
+      if (error) throw error;
+
+      Alert.alert(
+        "Email reset dikirim",
+        "Cek inbox atau spam email kamu, lalu buka link reset password.",
+      );
+    } catch (error: any) {
+      Alert.alert("Gagal mengirim reset password", error.message);
     } finally {
       setLoading(false);
     }
@@ -152,6 +193,14 @@ const LoginScreen: React.FC = () => {
             />
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={styles.forgotContainer}
+          onPress={handleForgotPassword}
+          disabled={loading}
+        >
+          <Text style={styles.forgotText}>Forgot Password?</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.signInButton, loading && { opacity: 0.7 }]}

@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { supabase } from "../../lib/supabase";
 import { useProfile } from "../context/ProfileContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -163,8 +164,9 @@ export default function Profile() {
 
             <TouchableOpacity
               style={styles.logoutBtn}
-              onPress={() => {
+              onPress={async () => {
                 setLogoutVisible(false);
+                await supabase.auth.signOut();
                 router.replace("/login");
               }}
             >
