@@ -106,7 +106,23 @@ export default function RootLayout() {
                   options={{ animation: "slide_from_right" }}
                 />
                 <Stack.Screen
-                  name="admin/Dashboard"
+                  name="admin/overview"
+                  options={{ animation: "fade" }}
+                />
+                <Stack.Screen
+                  name="admin/products"
+                  options={{ animation: "fade" }}
+                />
+                <Stack.Screen
+                  name="admin/categories"
+                  options={{ animation: "fade" }}
+                />
+                <Stack.Screen
+                  name="admin/orders"
+                  options={{ animation: "fade" }}
+                />
+                <Stack.Screen
+                  name="admin/users"
                   options={{ animation: "fade" }}
                 />
               </Stack>

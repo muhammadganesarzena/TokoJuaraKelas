@@ -125,7 +125,7 @@ const LoginScreen: React.FC = () => {
       }
 
       if (adminData) {
-        router.replace("/admin/Dashboard");
+        router.replace("/admin/overview");
         return;
       }
 

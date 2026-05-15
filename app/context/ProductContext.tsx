@@ -2,18 +2,16 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 
 // ── Types ─────────────────────────────────────────────────────────
-export type Brand = {
+export type Category = {
   id: string;
   name: string;
-  logo: any;
-  logoDark?: any;
 };
 
 export type Product = {
   id: string;
   name: string;
   price: number;
-  image: any;
+  image?: { uri: string } | null;
   image_url?: string;
   description?: string;
   rating?: number;
@@ -23,9 +21,12 @@ export type Product = {
 };
 
 type ProductContextType = {
-  brands: Brand[];
   recommended: Product[];
   products: Product[];
+  filteredProducts: Product[];
+  categories: Category[];
+  selectedCategory: string | null;
+  setSelectedCategory: (id: string | null) => void;
   likedProducts: Record<string, boolean>;
   toggleLike: (id: string) => void;
   wishlist: Product[];
@@ -33,64 +34,41 @@ type ProductContextType = {
   refreshProducts: () => void;
 };
 
-// ── Brands tetap pakai lokal ──────────────────────────────────────
-const BRANDS: Brand[] = [
-  {
-    id: "1",
-    name: "Gibson",
-    logo: require("../../assets/images/TopBrands/gibson-1-logo-png-transparent.png"),
-    logoDark: require("../../assets/images/TopBrands/gibson_transparent_logo_fixed2.png"),
-  },
-  {
-    id: "2",
-    name: "Fender",
-    logo: require("../../assets/images/TopBrands/Fender Black.png"),
-    logoDark: require("../../assets/images/TopBrands/Fender white.png"),
-  },
-  {
-    id: "3",
-    name: "Ibanez",
-    logo: require("../../assets/images/TopBrands/Ibanez-Logo.png"),
-    logoDark: require("../../assets/images/TopBrands/Ibanez white.png"),
-  },
-  {
-    id: "4",
-    name: "Yamaha",
-    logo: require("../../assets/images/TopBrands/Yamaha_logo_PNG5.png"),
-    logoDark: require("../../assets/images/TopBrands/yamaha.jpg"),
-  },
-  {
-    id: "5",
-    name: "Taylor",
-    logo: require("../../assets/images/TopBrands/Taylor black.png"),
-    logoDark: require("../../assets/images/TopBrands/Taylor White.png"),
-  },
-];
-
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
 export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [likedProducts, setLikedProducts] = useState<Record<string, boolean>>(
     {},
   );
   const [loadingProducts, setLoadingProducts] = useState(true);
 
+  // Category Filter
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
   const fetchProducts = async () => {
     setLoadingProducts(true);
+
     const { data, error } = await supabase
       .from("products")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      // Mapping agar kompatibel dengan struktur Product yang dipakai Homepage
+    if (error) {
+      console.log("Fetch products error:", error);
+      setLoadingProducts(false);
+      return;
+    }
+
+    if (data) {
       const mapped: Product[] = data.map((p) => ({
         id: p.id,
         name: p.name,
@@ -103,9 +81,27 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({
         rating: 0,
         reviewCount: 0,
       }));
+
       setProducts(mapped);
     }
+
     setLoadingProducts(false);
+  };
+
+  const fetchCategories = async () => {
+    const { data, error } = await supabase
+      .from("categories")
+      .select("*")
+      .order("name");
+
+    if (error) {
+      console.log("Fetch categories error:", error);
+      return;
+    }
+
+    if (data) {
+      setCategories(data);
+    }
   };
 
   const toggleLike = (id: string) => {
@@ -115,17 +111,25 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({
     }));
   };
 
+  // Filter Products By Category
+  const filteredProducts = selectedCategory
+    ? products.filter((p) => p.category_id === selectedCategory)
+    : products;
+
   const wishlist = products.filter((p) => likedProducts[p.id]);
 
-  // Recommended = 5 produk pertama
+  // Recommended Products
   const recommended = products.slice(0, 5);
 
   return (
     <ProductContext.Provider
       value={{
-        brands: BRANDS,
         recommended,
         products,
+        filteredProducts,
+        categories,
+        selectedCategory,
+        setSelectedCategory,
         likedProducts,
         toggleLike,
         wishlist,
@@ -140,8 +144,10 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({
 
 export const useProducts = (): ProductContextType => {
   const context = useContext(ProductContext);
+
   if (!context) {
     throw new Error("useProducts must be used within a ProductProvider");
   }
+
   return context;
 };

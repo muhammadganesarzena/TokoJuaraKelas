@@ -157,11 +157,22 @@ const OrderConfirmation: React.FC = () => {
               { borderBottomColor: colors.borderLight },
             ]}
           >
-            <Image
-              source={product.image}
-              style={styles.orderImage}
-              resizeMode="contain"
-            />
+            {product.image ? (
+              <Image
+                source={product.image}
+                style={styles.orderImage}
+                resizeMode="contain"
+              />
+            ) : (
+              <View
+                style={[
+                  styles.orderImage,
+                  {
+                    backgroundColor: "#f0f0f0",
+                  },
+                ]}
+              />
+            )}
             <View style={styles.orderInfo}>
               <Text style={[styles.orderName, { color: colors.text }]}>
                 {product.name}

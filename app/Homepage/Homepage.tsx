@@ -1,5 +1,6 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -14,7 +15,7 @@ import {
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useCart } from "../context/CartContext";
-import type { Brand, Product } from "../context/ProductContext";
+import type { Category, Product } from "../context/ProductContext";
 import { useProducts } from "../context/ProductContext";
 import { useTheme } from "../context/ThemeContext";
 import BannerSlider from "./components/BannerSlider";
@@ -25,22 +26,29 @@ const formatRupiah = (amount: number): string =>
   "Rp " + amount.toLocaleString("id-ID");
 
 const Homepage: React.FC = () => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const styles = getStyles(colors);
   const {
-    brands,
     recommended,
-    products,
+    filteredProducts,
+    categories,
+    selectedCategory,
+    setSelectedCategory,
     likedProducts,
     toggleLike,
     loadingProducts,
+    refreshProducts,
   } = useProducts();
   const { totalCount } = useCart();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifPressed, setNotifPressed] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      refreshProducts();
+    }, []),
+  );
 
-  const brandScale = useRef(new Animated.Value(1)).current;
   const recommendedScale = useRef(new Animated.Value(1)).current;
   const productScale = useRef(new Animated.Value(1)).current;
 
@@ -51,33 +59,23 @@ const Homepage: React.FC = () => {
     });
   };
 
-  const renderBrand = ({ item }: { item: Brand }) => {
-    const onPressIn = () =>
-      Animated.spring(brandScale, {
-        toValue: 0.93,
-        useNativeDriver: true,
-      }).start();
-    const onPressOut = () =>
-      Animated.spring(brandScale, {
-        toValue: 1,
-        useNativeDriver: true,
-      }).start();
+  const renderCategory = ({ item }: { item: Category }) => {
+    const isSelected = selectedCategory === item.id;
 
     return (
-      <TouchableWithoutFeedback onPressIn={onPressIn} onPressOut={onPressOut}>
-        <Animated.View
-          style={[styles.brandCard, { transform: [{ scale: brandScale }] }]}
+      <TouchableOpacity
+        style={[styles.categoryChip, isSelected && styles.categoryChipActive]}
+        onPress={() => setSelectedCategory(isSelected ? null : item.id)}
+      >
+        <Text
+          style={[
+            styles.categoryChipText,
+            isSelected && styles.categoryChipTextActive,
+          ]}
         >
-          <Image
-            source={item.logo}
-            style={[
-              styles.brandLogo,
-              { tintColor: isDark ? "#FFFFFF" : undefined },
-            ]}
-            resizeMode="contain"
-          />
-        </Animated.View>
-      </TouchableWithoutFeedback>
+          {item.name}
+        </Text>
+      </TouchableOpacity>
     );
   };
 
@@ -233,6 +231,7 @@ const Homepage: React.FC = () => {
 
         <BannerSlider />
 
+        {/* Recommended */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recommended for you</Text>
           <Text style={styles.sectionSub}>Based on Search</Text>
@@ -247,16 +246,17 @@ const Homepage: React.FC = () => {
           contentContainerStyle={styles.horizontalList}
         />
 
+        {/* Kategori */}
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Top Brands</Text>
+          <Text style={styles.sectionTitle}>Kategori</Text>
           <TouchableOpacity>
             <Text style={styles.viewAll}>View All</Text>
           </TouchableOpacity>
         </View>
 
         <FlatList
-          data={brands}
-          renderItem={renderBrand}
+          data={categories}
+          renderItem={renderCategory}
           keyExtractor={(item) => item.id}
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -271,7 +271,7 @@ const Homepage: React.FC = () => {
               color="#2D6A4F"
               style={{ marginTop: 40, width: "100%" }}
             />
-          ) : products.length === 0 ? (
+          ) : filteredProducts.length === 0 ? (
             <Text
               style={{
                 textAlign: "center",
@@ -280,10 +280,12 @@ const Homepage: React.FC = () => {
                 width: "100%",
               }}
             >
-              Belum ada produk tersedia.
+              {selectedCategory
+                ? "Tidak ada produk di kategori ini."
+                : "Belum ada produk tersedia."}
             </Text>
           ) : (
-            products.map((item) => (
+            filteredProducts.map((item) => (
               <View key={item.id} style={styles.productWrapper}>
                 {renderProduct({ item })}
               </View>

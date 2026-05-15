@@ -7,10 +7,7 @@ const CARD_WIDTH = (width - 28 * 2 - 12) / 2;
 
 export const getStyles = (colors: Colors) =>
   StyleSheet.create({
-    root: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
+    root: { flex: 1, backgroundColor: colors.background },
     scrollView: { flex: 1 },
     scrollContent: { paddingBottom: 90 },
 
@@ -24,10 +21,7 @@ export const getStyles = (colors: Colors) =>
       paddingBottom: 12,
       backgroundColor: colors.surface,
     },
-    headerRight: {
-      flexDirection: "row",
-      gap: 8,
-    },
+    headerRight: { flexDirection: "row", gap: 8 },
     headerIcon: {
       width: 40,
       height: 40,
@@ -35,9 +29,7 @@ export const getStyles = (colors: Colors) =>
       justifyContent: "center",
       alignItems: "center",
     },
-    headerIconPressed: {
-      backgroundColor: colors.surfaceAlt,
-    },
+    headerIconPressed: { backgroundColor: colors.surfaceAlt },
 
     // Cart Badge
     cartBadge: {
@@ -52,11 +44,7 @@ export const getStyles = (colors: Colors) =>
       alignItems: "center",
       paddingHorizontal: 4,
     },
-    cartBadgeText: {
-      color: "#FFFFFF",
-      fontSize: 10,
-      fontWeight: "700",
-    },
+    cartBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
 
     // Feed Title
     feedTitle: {
@@ -70,11 +58,7 @@ export const getStyles = (colors: Colors) =>
     },
 
     // Sections
-    sectionHeader: {
-      paddingHorizontal: 20,
-      paddingTop: 24,
-      paddingBottom: 12,
-    },
+    sectionHeader: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 12 },
     sectionHeaderRow: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -83,25 +67,10 @@ export const getStyles = (colors: Colors) =>
       paddingTop: 24,
       paddingBottom: 12,
     },
-    sectionTitle: {
-      fontSize: 17,
-      fontWeight: "700",
-      color: colors.text,
-    },
-    sectionSub: {
-      fontSize: 12,
-      color: colors.textMuted,
-      marginTop: 2,
-    },
-    viewAll: {
-      fontSize: 13,
-      color: colors.textMuted,
-      fontWeight: "500",
-    },
-    horizontalList: {
-      paddingHorizontal: 20,
-      gap: 12,
-    },
+    sectionTitle: { fontSize: 17, fontWeight: "700", color: colors.text },
+    sectionSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    viewAll: { fontSize: 13, color: colors.textMuted, fontWeight: "500" },
+    horizontalList: { paddingHorizontal: 20, gap: 12 },
 
     // Recommended
     recommendCard: {
@@ -110,42 +79,33 @@ export const getStyles = (colors: Colors) =>
       borderRadius: 16,
       padding: 12,
     },
-    recommendImage: {
-      width: "100%",
-      height: 120,
-      marginBottom: 8,
-    },
-    recommendPrice: {
-      fontSize: 15,
-      fontWeight: "700",
-      color: colors.text,
-    },
-    recommendName: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
+    recommendImage: { width: "100%", height: 120, marginBottom: 8 },
+    recommendPrice: { fontSize: 15, fontWeight: "700", color: colors.text },
+    recommendName: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 
-    // Brand
-    brandCard: {
-      width: 90,
-      height: 56,
+    // Kategori
+    categoryChip: {
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+      borderRadius: 20,
       backgroundColor: colors.card,
-      borderRadius: 14,
       borderWidth: 1,
       borderColor: colors.border,
       justifyContent: "center",
       alignItems: "center",
-      paddingHorizontal: 10,
     },
-    brandLogo: { width: 48, height: 28 },
-    brandName: {
-      fontSize: 10,
-      color: colors.textSecondary,
-      marginTop: 2,
+    categoryChipActive: {
+      backgroundColor: "#2D6A4F",
+      borderColor: "#2D6A4F",
+    },
+    categoryChipText: {
+      fontSize: 13,
       fontWeight: "600",
+      color: colors.text,
     },
-
+    categoryChipTextActive: {
+      color: "#FFFFFF",
+    },
     // Products Grid
     productsGrid: {
       flexDirection: "row",
@@ -161,28 +121,15 @@ export const getStyles = (colors: Colors) =>
       padding: 12,
       position: "relative",
     },
-    heartButton: {
-      position: "absolute",
-      top: 10,
-      right: 10,
-      zIndex: 10,
-    },
+    heartButton: { position: "absolute", top: 10, right: 10, zIndex: 10 },
     productImage: {
       width: "100%",
       height: 130,
       marginBottom: 10,
       marginTop: 4,
     },
-    productPrice: {
-      fontSize: 15,
-      fontWeight: "700",
-      color: colors.text,
-    },
-    productName: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
+    productPrice: { fontSize: 15, fontWeight: "700", color: colors.text },
+    productName: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
 
     // Bottom Nav
     bottomNav: {
@@ -197,11 +144,7 @@ export const getStyles = (colors: Colors) =>
       left: 0,
       right: 0,
     },
-    navItem: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-    },
+    navItem: { flex: 1, alignItems: "center", justifyContent: "center" },
     navDot: {
       width: 5,
       height: 5,
