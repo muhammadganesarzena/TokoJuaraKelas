@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState } from "react";
 type Theme = "light" | "dark";
 
 export const lightColors = {
-  background: "#F8FAF8", // Putih bersih dengan sedikit nuansa hijau sangat muda
+  background: "#F8FAF8",
   surface: "#FFFFFF",
   surfaceAlt: "#F0F4F0",
   card: "#FFFFFF",
@@ -11,11 +11,11 @@ export const lightColors = {
   input: "#F0F4F0",
   border: "#E2E8E2",
   borderLight: "#EEF2EE",
-  text: "#0A2E0A", // Hijau gelap (deep forest) untuk keterbacaan tinggi
+  text: "#0A2E0A",
   textSecondary: "#4A5D4A",
   textMuted: "#889988",
   textPlaceholder: "#B0BCB0",
-  accent: "#10893E", // Hijau utama dari logo Juara Kelas
+  accent: "#10893E",
   accentSoft: "rgba(16, 137, 62, 0.1)",
   statusBar: "dark-content" as "dark-content" | "light-content",
   navBar: "#FFFFFF",
@@ -24,7 +24,7 @@ export const lightColors = {
 };
 
 export const darkColors = {
-  background: "#050B05", // Hitam pekat dengan tint hijau tua
+  background: "#050B05",
   surface: "#121A12",
   surfaceAlt: "#1A241A",
   card: "#161E16",
@@ -32,11 +32,11 @@ export const darkColors = {
   input: "#1A241A",
   border: "#253325",
   borderLight: "#1D261D",
-  text: "#F0F5F0", // Putih dengan sedikit rona hijau
+  text: "#F0F5F0",
   textSecondary: "#A0B0A0",
   textMuted: "#607060",
   textPlaceholder: "#455045",
-  accent: "#16A34A", // Hijau logo yang disesuaikan untuk mode gelap agar lebih kontras
+  accent: "#16A34A",
   accentSoft: "rgba(22, 163, 74, 0.2)",
   statusBar: "light-content" as "dark-content" | "light-content",
   navBar: "#121A12",
@@ -49,6 +49,7 @@ export type Colors = typeof lightColors;
 interface ThemeContextType {
   theme: Theme;
   toggleTheme: () => void;
+  setTheme: (theme: Theme) => void;
   isDark: boolean;
   colors: Colors;
 }
@@ -56,6 +57,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType>({
   theme: "light",
   toggleTheme: () => {},
+  setTheme: () => {},
   isDark: false,
   colors: lightColors,
 });
@@ -63,13 +65,29 @@ const ThemeContext = createContext<ThemeContextType>({
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setThemeState] = useState<Theme>("light");
+
   const isDark = theme === "dark";
   const colors = isDark ? darkColors : lightColors;
-  const toggleTheme = () => setTheme((p) => (p === "light" ? "dark" : "light"));
+
+  const toggleTheme = () => {
+    setThemeState((prev) => (prev === "light" ? "dark" : "light"));
+  };
+
+  const setTheme = (newTheme: Theme) => {
+    setThemeState(newTheme);
+  };
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isDark, colors }}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        toggleTheme,
+        setTheme,
+        isDark,
+        colors,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );
