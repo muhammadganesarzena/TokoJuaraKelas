@@ -254,6 +254,11 @@ const STATUS_CFG: Record<
   { color: string; icon: keyof typeof Ionicons.glyphMap; bg: string }
 > = {
   pending: { color: "#F59E0B", icon: "time-outline", bg: "#FEF3C7" },
+  accepted: {
+    color: "#10B981",
+    icon: "checkmark-circle-outline",
+    bg: "#D1FAE5",
+  },
   proses: { color: "#3B82F6", icon: "reload-circle-outline", bg: "#DBEAFE" },
   dikirim: { color: "#8B5CF6", icon: "bicycle-outline", bg: "#EDE9FE" },
   selesai: {

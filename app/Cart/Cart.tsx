@@ -47,8 +47,8 @@ const Cart: React.FC = () => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >
-            {cartItems.map(({ product, quantity }) => (
-              <View key={product.id} style={styles.cartCard}>
+            {cartItems.map(({ id, product, quantity }) => (
+              <View key={id} style={styles.cartCard}>
                 <View style={styles.cartImageWrapper}>
                   <Image
                     source={product.image}
@@ -65,14 +65,14 @@ const Cart: React.FC = () => {
                 <View style={styles.qtyControl}>
                   <TouchableOpacity
                     style={styles.qtyBtn}
-                    onPress={() => updateQuantity(product.id, -1)}
+                    onPress={() => updateQuantity(id, -1)}
                   >
                     <Text style={styles.qtyBtnText}>−</Text>
                   </TouchableOpacity>
                   <Text style={styles.qtyValue}>{quantity}</Text>
                   <TouchableOpacity
                     style={styles.qtyBtn}
-                    onPress={() => updateQuantity(product.id, 1)}
+                    onPress={() => updateQuantity(id, 1)}
                   >
                     <Text style={styles.qtyBtnText}>+</Text>
                   </TouchableOpacity>

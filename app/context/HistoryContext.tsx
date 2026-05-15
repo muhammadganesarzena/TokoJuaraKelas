@@ -4,6 +4,10 @@ import { supabase } from "../../lib/supabase";
 export type HistoryItem = {
   id: string;
   refNumber: string;
+  pickupCode?: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  fulfillmentType?: string;
   paymentTime: string;
   totalPrice: number;
   adminFee: number;
@@ -69,7 +73,7 @@ export const HistoryProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchHistory = async (uid: string) => {
     setLoadingHistory(true);
     const { data, error } = await supabase
-      .from("order_history")
+      .from("orders")
       .select("*")
       .eq("user_id", uid)
       .order("created_at", { ascending: false });
@@ -77,17 +81,28 @@ export const HistoryProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!error && data) {
       const mapped: HistoryItem[] = data.map((item: any) => ({
         id: item.id,
-        refNumber: item.ref_number,
-        paymentTime: item.payment_time,
-        totalPrice: item.total_price,
-        adminFee: item.admin_fee,
-        name: item.name,
-        email: item.email,
-        phone: item.phone,
-        address: item.address,
-        city: item.city,
-        products: item.products,
-        status: item.status,
+        refNumber: item.ref_number || item.id,
+        pickupCode: item.pickup_code,
+        paymentMethod: item.payment_method || "qris",
+        paymentStatus: item.payment_status,
+        fulfillmentType: item.fulfillment_type || "pickup",
+        paymentTime: item.created_at
+          ? new Date(item.created_at).toLocaleString("id-ID")
+          : "-",
+        totalPrice: item.subtotal ?? Math.max((item.total_price || 0) - (item.admin_fee || 0), 0),
+        adminFee: item.admin_fee || 0,
+        name: item.customer_name || item.name || "-",
+        email: item.email || "-",
+        phone: item.phone || "-",
+        address: item.fulfillment_type === "delivery" ? item.address || "-" : "Pick up di toko",
+        city: item.city || "-",
+        products: item.items || item.products || [],
+        status:
+          item.status === "accepted" || item.status === "selesai"
+            ? "completed"
+            : item.status === "batal" || item.status === "rejected"
+              ? "cancelled"
+              : "processing",
       }));
       setHistoryItems(mapped);
     }

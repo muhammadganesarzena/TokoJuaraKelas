@@ -11,6 +11,7 @@ export type CartItem = {
 type CartContextType = {
   cartItems: CartItem[];
   addToCart: (product: Product) => void;
+  buyNow: (product: Product) => Promise<boolean>;
   removeFromCart: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, delta: number) => void;
   clearCart: () => void;
@@ -131,6 +132,28 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const buyNow = async (product: Product) => {
+    if (!userId) return false;
+
+    const { error: deleteError } = await supabase
+      .from("cart_items")
+      .delete()
+      .eq("user_id", userId);
+    if (deleteError) return false;
+
+    const { data, error } = await supabase
+      .from("cart_items")
+      .insert({ user_id: userId, product_id: product.id, quantity: 1 })
+      .select()
+      .single();
+
+    if (error || !data) return false;
+
+    setCartItems([{ id: data.id, product, quantity: 1 }]);
+    return true;
+  };
+
+
   const removeFromCart = async (cartItemId: string) => {
     const { error } = await supabase
       .from("cart_items")
@@ -182,6 +205,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       value={{
         cartItems,
         addToCart,
+        buyNow,
         removeFromCart,
         updateQuantity,
         clearCart,

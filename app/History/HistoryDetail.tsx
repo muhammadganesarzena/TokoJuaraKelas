@@ -216,7 +216,7 @@ const HistoryDetail: React.FC = () => {
               Method
             </Text>
             <Text style={[styles.payValue, { color: colors.text }]}>
-              Credit Card
+              {(item.paymentMethod || "QRIS").toUpperCase()}
             </Text>
           </View>
           <View style={styles.payRow}>
@@ -225,6 +225,26 @@ const HistoryDetail: React.FC = () => {
             </Text>
             <Text style={[styles.payValue, { color: colors.text }]}>
               {item.refNumber}
+            </Text>
+          </View>
+          <View style={styles.payRow}>
+            <Text style={[styles.payLabel, { color: colors.textMuted }]}>
+              Kode Pick Up
+            </Text>
+            <Text
+              style={[
+                styles.payValue,
+                {
+                  color:
+                    item.status === "completed" && item.pickupCode
+                      ? "#2D6A4F"
+                      : colors.textMuted,
+                },
+              ]}
+            >
+              {item.status === "completed" && item.pickupCode
+                ? item.pickupCode
+                : "Menunggu verifikasi admin"}
             </Text>
           </View>
         </View>

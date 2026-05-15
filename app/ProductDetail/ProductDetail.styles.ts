@@ -220,6 +220,9 @@ export const getStyles = (colors: Colors) =>
       alignItems: "center",
       justifyContent: "center",
     },
+    buyNowBtnDisabled: {
+      opacity: 0.7,
+    },
     buyNowText: {
       fontSize: 15,
       fontWeight: "700",

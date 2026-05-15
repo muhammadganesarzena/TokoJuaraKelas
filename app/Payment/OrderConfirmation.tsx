@@ -24,15 +24,16 @@ const OrderConfirmation: React.FC = () => {
   const savedRef = useRef(false);
 
   const params = useLocalSearchParams<{
+    orderId: string;
     refNumber: string;
+    pickupCode: string;
     paymentTime: string;
     totalPrice: string;
     adminFee: string;
     name: string;
     email: string;
     phone: string;
-    address: string;
-    city: string;
+    fulfillmentType: string;
   }>();
 
   const subtotal = Number(params.totalPrice) || 0;
@@ -50,8 +51,8 @@ const OrderConfirmation: React.FC = () => {
       name: params.name || "Guest",
       email: params.email || "-",
       phone: params.phone || "-",
-      address: params.address || "-",
-      city: params.city || "-",
+      address: "Pick up di toko",
+      city: "-",
       products: cartItems.map(({ product, quantity }) => ({
         productId: product.id,
         productName: product.name,
@@ -59,9 +60,19 @@ const OrderConfirmation: React.FC = () => {
         quantity,
         image: product.image,
       })),
-      status: "completed",
+      status: "processing",
     });
-  }, []);
+  }, [
+    addHistory,
+    adminFee,
+    cartItems,
+    params.email,
+    params.name,
+    params.paymentTime,
+    params.phone,
+    params.refNumber,
+    subtotal,
+  ]);
 
   const handleBackToShopping = () => {
     clearCart();
@@ -95,17 +106,18 @@ const OrderConfirmation: React.FC = () => {
           <Ionicons name="checkmark-circle" size={44} color="#34C759" />
           <View style={styles.thankYouText}>
             <Text style={[styles.thankYouTitle, { color: colors.text }]}>
-              Thank you!
+              Order diterima!
             </Text>
             <Text style={[styles.thankYouSub, { color: colors.textSecondary }]}>
-              Your order #{params.refNumber?.slice(-5) || "00000"} has been
-              placed.
+              Admin akan mengecek bukti pembayaran kamu.
             </Text>
           </View>
         </View>
 
         <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-          We sent an email to{" "}
+          Setelah pembayaran diterima, kode pick up akan aktif di history untuk
+          ditukarkan di toko. segera chat admin atau langsung konfirmasi di toko
+          untuk mengambil barang. Email:{" "}
           <Text style={{ fontWeight: "700", color: colors.text }}>
             {params.email || "your email"}
           </Text>{" "}
@@ -115,7 +127,7 @@ const OrderConfirmation: React.FC = () => {
           Time placed: {params.paymentTime || "-"}
         </Text>
 
-        {[{ title: "Shipping" }, { title: "Billing" }].map(({ title }) => (
+        {[{ title: "Pick Up" }].map(({ title }) => (
           <React.Fragment key={title}>
             <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
               {title}
@@ -139,8 +151,7 @@ const OrderConfirmation: React.FC = () => {
               <Text
                 style={[styles.cardDetail, { color: colors.textSecondary }]}
               >
-                {params.address || "-"}
-                {params.city ? `, ${params.city}` : ""}
+                Ambil langsung di toko setelah status order accepted.
               </Text>
             </View>
           </React.Fragment>

@@ -299,6 +299,8 @@ export default function Dashboard() {
     switch (status) {
       case "pending":
         return "#FFA000";
+      case "accepted":
+        return "#2D6A4F";
       case "proses":
         return "#1976D2";
       case "dikirim":

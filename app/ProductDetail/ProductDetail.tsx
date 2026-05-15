@@ -1,6 +1,8 @@
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
+    ActivityIndicator,
+    Alert,
     Image,
     ScrollView,
     StatusBar,
@@ -22,10 +24,11 @@ const ProductDetail: React.FC = () => {
   const styles = getStyles(colors);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { products, recommended, likedProducts, toggleLike } = useProducts();
-  const { addToCart, clearCart } = useCart();
+  const { addToCart, buyNow } = useCart();
 
   const [selectedThumb, setSelectedThumb] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
 
   const allProducts = [...products, ...recommended];
   const product = allProducts.find((p) => p.id === id);
@@ -50,9 +53,16 @@ const ProductDetail: React.FC = () => {
     setTimeout(() => setAddedToCart(false), 1500);
   };
 
-  const handleBuyNow = () => {
-    clearCart();
-    addToCart(product);
+  const handleBuyNow = async () => {
+    setBuyingNow(true);
+    const ready = await buyNow(product);
+    setBuyingNow(false);
+
+    if (!ready) {
+      Alert.alert("Gagal", "Produk belum bisa langsung dibeli. Coba login ulang.");
+      return;
+    }
+
     router.push("/Payment/Payment");
   };
 
@@ -158,8 +168,16 @@ const ProductDetail: React.FC = () => {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.buyNowBtn} onPress={handleBuyNow}>
-          <Text style={styles.buyNowText}>Buy Now</Text>
+        <TouchableOpacity
+          style={[styles.buyNowBtn, buyingNow && styles.buyNowBtnDisabled]}
+          onPress={handleBuyNow}
+          disabled={buyingNow}
+        >
+          {buyingNow ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.buyNowText}>Buy Now</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>

@@ -56,6 +56,25 @@ export const getStyles = (colors: Colors) =>
     sectionNumberText: { fontSize: 13, fontWeight: "700", color: ORANGE },
     sectionTitle: { fontSize: 16, fontWeight: "700", color: colors.text },
 
+    optionRow: { flexDirection: "row", gap: 12, marginBottom: 4 },
+    optionCard: {
+      flex: 1,
+      minHeight: 116,
+      backgroundColor: colors.cardAlt,
+      borderRadius: 12,
+      padding: 14,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      justifyContent: "center",
+      gap: 6,
+    },
+    optionCardSelected: {
+      borderColor: ORANGE,
+      backgroundColor: ORANGE + "12",
+    },
+    optionTitle: { fontSize: 15, fontWeight: "800", color: colors.text },
+    optionSub: { fontSize: 12, color: colors.textMuted, lineHeight: 16 },
+
     shippingCard: {
       flexDirection: "row",
       alignItems: "center",
@@ -109,6 +128,11 @@ export const getStyles = (colors: Colors) =>
       borderColor: "#FF3B30",
       borderWidth: 1.5,
       backgroundColor: "#FF3B3010",
+    },
+    noteInput: {
+      minHeight: 92,
+      paddingTop: 12,
+      lineHeight: 20,
     },
 
     errorText: {
@@ -186,6 +210,53 @@ export const getStyles = (colors: Colors) =>
     cardRow: { flexDirection: "row", gap: 12 },
     cardRowHalf: { flex: 1 },
 
+    qrisCard: {
+      backgroundColor: colors.cardAlt,
+      borderRadius: 14,
+      padding: 18,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: colors.borderLight,
+    },
+    qrisTitle: { fontSize: 15, fontWeight: "800", color: colors.text },
+    qrisBox: {
+      width: 240,
+      height: 240,
+      backgroundColor: "#FFFFFF",
+      marginTop: 14,
+      marginBottom: 12,
+      padding: 10,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: "#E7E7E7",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    qrisImage: { width: "100%", height: "100%" },
+    qrisCell: { width: 18, height: 18 },
+    qrisCellDark: { backgroundColor: "#111111" },
+    qrisCellLight: { backgroundColor: "#FFFFFF" },
+    qrisAmount: { fontSize: 18, fontWeight: "800", color: ORANGE },
+    uploadBtn: {
+      marginTop: 14,
+      backgroundColor: "#2D6A4F",
+      borderRadius: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      gap: 8,
+    },
+    uploadBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
+    proofPreview: {
+      width: "100%",
+      height: 190,
+      borderRadius: 12,
+      marginTop: 12,
+      backgroundColor: colors.cardAlt,
+    },
+
     orderItem: {
       flexDirection: "row",
       alignItems: "center",
@@ -231,6 +302,7 @@ export const getStyles = (colors: Colors) =>
       paddingVertical: 16,
       alignItems: "center",
     },
+    payBtnDisabled: { opacity: 0.7 },
     payBtnText: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
 
     modalOverlay: {

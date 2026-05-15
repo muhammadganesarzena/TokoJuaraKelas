@@ -1,33 +1,66 @@
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-    Image,
-    Modal,
-    ScrollView,
-    StatusBar,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  ScrollView,
+  StatusBar,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { supabase } from "../../lib/supabase";
 import { useCart } from "../context/CartContext";
 import { useTheme } from "../context/ThemeContext";
 import { getStyles } from "./Payment.styles";
 
 const formatRupiah = (amount: number) => "Rp " + amount.toLocaleString("id-ID");
+const QRIS_IMAGE = require("../../assets/qris.jpeg");
+
+type FulfillmentType = "pickup" | "delivery";
 
 type FieldErrors = {
   name?: string;
   phone?: string;
   email?: string;
-  address?: string;
-  city?: string;
-  cardName?: string;
-  cardNumber?: string;
-  expMonth?: string;
-  expYear?: string;
-  cvv?: string;
+  proof?: string;
+  fulfillment?: string;
+};
+
+type ProofAsset = {
+  uri: string;
+  base64?: string | null;
+  mimeType?: string | null;
+  fileName?: string | null;
+};
+
+const adminFee = 5000;
+
+const base64ToArrayBuffer = (base64: string) => {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const clean = base64.replace(/[^A-Za-z0-9+/=]/g, "");
+  const bytes: number[] = [];
+
+  for (let i = 0; i < clean.length; i += 4) {
+    const enc1 = chars.indexOf(clean.charAt(i));
+    const enc2 = chars.indexOf(clean.charAt(i + 1));
+    const enc3 = chars.indexOf(clean.charAt(i + 2));
+    const enc4 = chars.indexOf(clean.charAt(i + 3));
+    const chr1 = (enc1 << 2) | (enc2 >> 4);
+    const chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+    const chr3 = ((enc3 & 3) << 6) | enc4;
+
+    bytes.push(chr1);
+    if (enc3 !== 64 && enc3 !== -1) bytes.push(chr2);
+    if (enc4 !== 64 && enc4 !== -1) bytes.push(chr3);
+  }
+
+  return new Uint8Array(bytes).buffer;
 };
 
 const Payment: React.FC = () => {
@@ -35,112 +68,149 @@ const Payment: React.FC = () => {
   const styles = getStyles(colors);
   const { cartItems, totalPrice } = useCart();
 
+  const [fulfillment, setFulfillment] = useState<FulfillmentType | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
-  const [cardName, setCardName] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [expMonth, setExpMonth] = useState("");
-  const [expYear, setExpYear] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [sameAddress, setSameAddress] = useState(true);
-  const [billingType, setBillingType] = useState<"personal" | "commercial">(
-    "personal",
-  );
-  const [selectedMethod, setSelectedMethod] = useState<
-    "mastercard" | "visa" | "amex" | "discover"
-  >("visa");
+  const [orderNote, setOrderNote] = useState("");
+  const [proof, setProof] = useState<ProofAsset | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [attempted, setAttempted] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [refNumber] = useState(() =>
-    String(Math.floor(Math.random() * 999999999)).padStart(12, "0"),
+  const [submitting, setSubmitting] = useState(false);
+  const [refNumber] = useState(
+    () => `ORD-${String(Math.floor(Math.random() * 999999)).padStart(6, "0")}`,
   );
-  const [paymentTime] = useState(() => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}, ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-  });
+  const [pickupCode] = useState(
+    () => `PU-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`,
+  );
 
-  const adminFee = 5000;
+  const totalAmount = totalPrice + adminFee;
 
-  const validate = (): boolean => {
-    const e: FieldErrors = {};
-    if (!name.trim()) e.name = "Name is required";
-    if (!phone.trim()) e.phone = "Phone number is required";
-    else if (phone.trim().length < 8) e.phone = "Phone number is too short";
-    if (!email.trim()) e.email = "Email is required";
+  const validate = () => {
+    const next: FieldErrors = {};
+    if (!fulfillment) next.fulfillment = "Pilih metode pengambilan dulu.";
+    if (!name.trim()) next.name = "Nama wajib diisi.";
+    if (!phone.trim()) next.phone = "Nomor HP wajib diisi.";
+    if (!email.trim()) next.email = "Email wajib diisi.";
     else if (!/\S+@\S+\.\S+/.test(email.trim()))
-      e.email = "Invalid email format";
-    if (!address.trim()) e.address = "Address is required";
-    if (!city.trim()) e.city = "City is required";
-    if (!cardName.trim()) e.cardName = "Card holder name is required";
-    if (!cardNumber.trim()) e.cardNumber = "Card number is required";
-    else if (cardNumber.replace(/\s/g, "").length < 16)
-      e.cardNumber = "Card number must be 16 digits";
-    if (!expMonth.trim()) e.expMonth = "Required";
-    else {
-      const m = parseInt(expMonth, 10);
-      if (m < 1 || m > 12) e.expMonth = "Invalid month";
+      next.email = "Format email tidak valid.";
+    if (!proof) next.proof = "Upload bukti pembayaran QRIS.";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const selectFulfillment = (value: FulfillmentType) => {
+    if (value === "delivery") {
+      Alert.alert(
+        "Antar belum tersedia",
+        "Untuk sekarang checkout difokuskan ke pick up di toko dulu.",
+      );
+      return;
     }
-    if (!expYear.trim()) e.expYear = "Required";
-    else if (expYear.trim().length < 4) e.expYear = "Use 4 digits";
-    if (!cvv.trim()) e.cvv = "Required";
-    else if (cvv.trim().length < 3) e.cvv = "Min 3 digits";
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    setFulfillment(value);
+    setErrors((prev) => ({ ...prev, fulfillment: undefined }));
   };
 
-  const handleChange = (
-    field: keyof FieldErrors,
-    value: string,
-    setter: (v: string) => void,
-  ) => {
-    setter(value);
-    if (attempted && errors[field])
-      setErrors((prev) => {
-        const u = { ...prev };
-        delete u[field];
-        return u;
-      });
-  };
-
-  const handlePayment = () => {
-    setAttempted(true);
-    if (validate()) setShowSuccess(true);
-  };
-
-  const handleContinue = () => {
-    setShowSuccess(false);
-    router.push({
-      pathname: "/Payment/OrderConfirmation",
-      params: {
-        refNumber,
-        paymentTime,
-        totalPrice: String(totalPrice),
-        adminFee: String(adminFee),
-        name: name || "Guest",
-        email: email || "-",
-        phone: phone || "-",
-        address: address || "-",
-        city: city || "-",
-      },
+  const pickProof = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      base64: true,
     });
+    if (!result.canceled) {
+      setProof(result.assets[0]);
+      setErrors((prev) => ({ ...prev, proof: undefined }));
+    }
   };
 
-  const paymentMethods = [
-    { id: "mastercard", label: "MC" },
-    { id: "visa", label: "VISA" },
-    { id: "amex", label: "AMEX" },
-    { id: "discover", label: "DISC" },
-  ] as const;
+  const uploadProof = async (userId: string) => {
+    if (!proof?.base64) return null;
+    const ext = proof.fileName?.split(".").pop() || "jpg";
+    const path = `${userId}/${refNumber}.${ext}`;
+    const { error } = await supabase.storage
+      .from("payment-proofs")
+      .upload(path, base64ToArrayBuffer(proof.base64), {
+        contentType: proof.mimeType || "image/jpeg",
+        upsert: true,
+      });
 
-  const inputStyle = (field: keyof FieldErrors) => [
-    styles.input,
-    errors[field] ? styles.inputError : null,
-  ];
+    if (error) throw error;
+
+    const { data } = supabase.storage.from("payment-proofs").getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const submitOrder = async () => {
+    if (!validate()) return;
+    if (cartItems.length === 0) {
+      Alert.alert("Cart kosong", "Tambahkan produk sebelum checkout.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error("Silakan login terlebih dulu.");
+
+      const proofUrl = await uploadProof(user.id);
+      const products = cartItems.map(({ product, quantity }) => ({
+        productId: product.id,
+        productName: product.name,
+        price: product.price,
+        quantity,
+        image: product.image_url ? { uri: product.image_url } : product.image,
+      }));
+
+      const orderPayload = {
+        user_id: user.id,
+        ref_number: refNumber,
+        pickup_code: pickupCode,
+        fulfillment_type: "pickup",
+        payment_method: "qris",
+        payment_status: "waiting_verification",
+        payment_proof_url: proofUrl,
+        customer_name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        order_note: orderNote.trim() || null,
+        items: products,
+        subtotal: totalPrice,
+        admin_fee: adminFee,
+        total_price: totalAmount,
+        status: "pending",
+      };
+
+      const { data, error } = await supabase
+        .from("orders")
+        .insert(orderPayload)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      router.replace({
+        pathname: "/Payment/OrderConfirmation",
+        params: {
+          orderId: data.id,
+          refNumber,
+          pickupCode,
+          paymentTime: new Date().toLocaleString("id-ID"),
+          totalPrice: String(totalPrice),
+          adminFee: String(adminFee),
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          fulfillmentType: "pickup",
+        },
+      });
+    } catch (err: any) {
+      Alert.alert("Gagal checkout", err.message || "Order belum bisa dibuat.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -153,7 +223,7 @@ const Payment: React.FC = () => {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Secure Payment</Text>
+        <Text style={styles.headerTitle}>Checkout</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -162,262 +232,141 @@ const Payment: React.FC = () => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        <Text style={styles.sectionLabel}>Shipping</Text>
-        <View style={styles.shippingCard}>
-          <View style={styles.shippingInfo}>
-            <Text style={styles.shippingName}>{name || "Your Name"}</Text>
-            <Text style={styles.shippingDetail}>
-              {email || "email@example.com"}
-            </Text>
-            <Text style={styles.shippingDetail}>{phone || "+62 xxx"}</Text>
-            <Text style={styles.shippingDetail}>
-              {address || "Your address"}
-              {city ? `, ${city}` : ""}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#E8622A" />
-        </View>
-
-        <View style={styles.checkboxRow}>
+        <Text style={styles.sectionLabel}>Metode Pesanan</Text>
+        <View style={styles.optionRow}>
           <TouchableOpacity
-            style={[styles.checkbox, sameAddress && styles.checkboxChecked]}
-            onPress={() => setSameAddress(!sameAddress)}
+            style={[
+              styles.optionCard,
+              fulfillment === "pickup" && styles.optionCardSelected,
+            ]}
+            onPress={() => selectFulfillment("pickup")}
           >
-            {sameAddress && (
-              <Ionicons name="checkmark" size={14} color="#FFF" />
-            )}
+            <Ionicons name="storefront-outline" size={24} color="#E8622A" />
+            <Text style={styles.optionTitle}>Pick Up</Text>
+            <Text style={styles.optionSub}>Ambil langsung di toko</Text>
           </TouchableOpacity>
-          <Text style={styles.checkboxLabel}>
-            Billing and delivery addresses are same.
-          </Text>
+          <TouchableOpacity
+            style={styles.optionCard}
+            onPress={() => selectFulfillment("delivery")}
+          >
+            <Ionicons
+              name="bicycle-outline"
+              size={24}
+              color={colors.textMuted}
+            />
+            <Text style={styles.optionTitle}>Antar</Text>
+            <Text style={styles.optionSub}>Segera hadir</Text>
+          </TouchableOpacity>
         </View>
-
-        {/* Section 1 */}
-        <View style={styles.sectionRow}>
-          <View style={styles.sectionNumber}>
-            <Text style={styles.sectionNumberText}>1</Text>
-          </View>
-          <Text style={styles.sectionTitle}>Recipient Information</Text>
-        </View>
-
-        <Text style={styles.inputLabel}>Name and Surname*</Text>
-        <TextInput
-          style={inputStyle("name")}
-          placeholder="Enter full name"
-          placeholderTextColor={colors.textPlaceholder}
-          value={name}
-          onChangeText={(v) => handleChange("name", v, setName)}
-        />
-        {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-
-        <Text style={styles.inputLabel}>Phone Number*</Text>
-        <TextInput
-          style={inputStyle("phone")}
-          placeholder="+62 812 3456 7890"
-          placeholderTextColor={colors.textPlaceholder}
-          keyboardType="phone-pad"
-          value={phone}
-          onChangeText={(v) => handleChange("phone", v, setPhone)}
-        />
-        {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
-
-        <Text style={styles.inputLabel}>E-mail Address*</Text>
-        <TextInput
-          style={inputStyle("email")}
-          placeholder="email@example.com"
-          placeholderTextColor={colors.textPlaceholder}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={(v) => handleChange("email", v, setEmail)}
-        />
-        {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-
-        {/* Section 2 */}
-        <View style={styles.sectionRow}>
-          <View style={styles.sectionNumber}>
-            <Text style={styles.sectionNumberText}>2</Text>
-          </View>
-          <Text style={styles.sectionTitle}>Shipping Address</Text>
-        </View>
-
-        <Text style={styles.inputLabel}>Address*</Text>
-        <TextInput
-          style={inputStyle("address")}
-          placeholder="Street address"
-          placeholderTextColor={colors.textPlaceholder}
-          value={address}
-          onChangeText={(v) => handleChange("address", v, setAddress)}
-        />
-        {errors.address && (
-          <Text style={styles.errorText}>{errors.address}</Text>
+        {errors.fulfillment && (
+          <Text style={styles.errorText}>{errors.fulfillment}</Text>
         )}
 
-        <Text style={styles.inputLabel}>City*</Text>
-        <TextInput
-          style={inputStyle("city")}
-          placeholder="City"
-          placeholderTextColor={colors.textPlaceholder}
-          value={city}
-          onChangeText={(v) => handleChange("city", v, setCity)}
-        />
-        {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
+        {fulfillment === "pickup" && (
+          <>
+            <View style={styles.sectionRow}>
+              <View style={styles.sectionNumber}>
+                <Text style={styles.sectionNumberText}>1</Text>
+              </View>
+              <Text style={styles.sectionTitle}>Data Pemesan</Text>
+            </View>
 
-        {/* Section 3 */}
-        <View style={styles.sectionRow}>
-          <View style={styles.sectionNumber}>
-            <Text style={styles.sectionNumberText}>3</Text>
-          </View>
-          <Text style={styles.sectionTitle}>Billing Information</Text>
-        </View>
-        <View style={styles.checkboxRow}>
-          <TouchableOpacity
-            style={[styles.checkbox, sameAddress && styles.checkboxChecked]}
-            onPress={() => setSameAddress(!sameAddress)}
-          >
-            {sameAddress && (
-              <Ionicons name="checkmark" size={14} color="#FFF" />
+            <Text style={styles.inputLabel}>Nama*</Text>
+            <TextInput
+              style={[styles.input, errors.name && styles.inputError]}
+              placeholder="Nama lengkap"
+              placeholderTextColor={colors.textPlaceholder}
+              value={name}
+              onChangeText={setName}
+            />
+            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+
+            <Text style={styles.inputLabel}>Nomor HP*</Text>
+            <TextInput
+              style={[styles.input, errors.phone && styles.inputError]}
+              placeholder="+62 812 3456 7890"
+              placeholderTextColor={colors.textPlaceholder}
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
+            />
+            {errors.phone && (
+              <Text style={styles.errorText}>{errors.phone}</Text>
             )}
-          </TouchableOpacity>
-          <Text style={styles.checkboxLabel}>Same as delivery address.</Text>
-        </View>
-        <Text style={styles.inputLabel}>Billing Type*</Text>
-        <View style={styles.radioRow}>
-          {(["personal", "commercial"] as const).map((t) => (
-            <TouchableOpacity
-              key={t}
-              style={styles.radioItem}
-              onPress={() => setBillingType(t)}
-            >
-              <View
-                style={[
-                  styles.radio,
-                  billingType === t && styles.radioSelected,
-                ]}
-              />
-              <Text style={styles.radioLabel}>
-                {t.charAt(0).toUpperCase() + t.slice(1)}
+
+            <Text style={styles.inputLabel}>Email*</Text>
+            <TextInput
+              style={[styles.input, errors.email && styles.inputError]}
+              placeholder="email@example.com"
+              placeholderTextColor={colors.textPlaceholder}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+            />
+            {errors.email && (
+              <Text style={styles.errorText}>{errors.email}</Text>
+            )}
+
+            <Text style={styles.inputLabel}>Catatan Order</Text>
+            <TextInput
+              style={[styles.input, styles.noteInput]}
+              placeholder='Contoh: "Saya mau yang warna merah"'
+              placeholderTextColor={colors.textPlaceholder}
+              value={orderNote}
+              onChangeText={setOrderNote}
+              multiline
+              textAlignVertical="top"
+            />
+
+            <View style={styles.sectionRow}>
+              <View style={styles.sectionNumber}>
+                <Text style={styles.sectionNumberText}>2</Text>
+              </View>
+              <Text style={styles.sectionTitle}>Bayar QRIS</Text>
+            </View>
+
+            <View style={styles.qrisCard}>
+              <Text style={styles.qrisTitle}>QRIS</Text>
+              <View style={styles.qrisBox}>
+                <Image
+                  source={QRIS_IMAGE}
+                  style={styles.qrisImage}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={styles.qrisAmount}>{formatRupiah(totalAmount)}</Text>
+            </View>
+
+            <TouchableOpacity style={styles.uploadBtn} onPress={pickProof}>
+              <Ionicons name="cloud-upload-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.uploadBtnText}>
+                {proof ? "Ganti Bukti Pembayaran" : "Upload Bukti Pembayaran"}
               </Text>
             </TouchableOpacity>
-          ))}
-        </View>
+            {proof && (
+              <Image source={{ uri: proof.uri }} style={styles.proofPreview} />
+            )}
+            {errors.proof && (
+              <Text style={styles.errorText}>{errors.proof}</Text>
+            )}
+          </>
+        )}
 
-        {/* Payment */}
-        <Text style={[styles.sectionLabel, { marginTop: 28 }]}>Payment</Text>
-        <View style={styles.cardSection}>
-          <View style={styles.cardHeader}>
-            <Ionicons name="card-outline" size={20} color={colors.text} />
-            <Text style={styles.cardHeaderText}>Add Credit / Debit Card</Text>
-          </View>
-          <View style={styles.methodRow}>
-            <Text style={styles.methodTitle}>Payment Method</Text>
-            <View style={styles.methodIcons}>
-              {paymentMethods.map((m) => (
-                <TouchableOpacity
-                  key={m.id}
-                  style={[
-                    styles.methodChip,
-                    selectedMethod === m.id && styles.methodChipSelected,
-                  ]}
-                  onPress={() => setSelectedMethod(m.id)}
-                >
-                  <Text
-                    style={[
-                      styles.methodChipText,
-                      selectedMethod === m.id && styles.methodChipTextSelected,
-                    ]}
-                  >
-                    {m.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <Text style={styles.inputLabel}>Name on card*</Text>
-          <TextInput
-            style={inputStyle("cardName")}
-            placeholder="Card holder name"
-            placeholderTextColor={colors.textPlaceholder}
-            value={cardName}
-            onChangeText={(v) => handleChange("cardName", v, setCardName)}
-          />
-          {errors.cardName && (
-            <Text style={styles.errorText}>{errors.cardName}</Text>
-          )}
-
-          <Text style={styles.inputLabel}>Card number*</Text>
-          <TextInput
-            style={inputStyle("cardNumber")}
-            placeholder="0000 0000 0000 0000"
-            placeholderTextColor={colors.textPlaceholder}
-            keyboardType="numeric"
-            maxLength={19}
-            value={cardNumber}
-            onChangeText={(v) => handleChange("cardNumber", v, setCardNumber)}
-          />
-          {errors.cardNumber && (
-            <Text style={styles.errorText}>{errors.cardNumber}</Text>
-          )}
-
-          <View style={styles.cardRow}>
-            <View style={styles.cardRowHalf}>
-              <Text style={styles.inputLabel}>Month*</Text>
-              <TextInput
-                style={inputStyle("expMonth")}
-                placeholder="MM"
-                placeholderTextColor={colors.textPlaceholder}
-                keyboardType="numeric"
-                maxLength={2}
-                value={expMonth}
-                onChangeText={(v) => handleChange("expMonth", v, setExpMonth)}
-              />
-              {errors.expMonth && (
-                <Text style={styles.errorText}>{errors.expMonth}</Text>
-              )}
-            </View>
-            <View style={styles.cardRowHalf}>
-              <Text style={styles.inputLabel}>Year*</Text>
-              <TextInput
-                style={inputStyle("expYear")}
-                placeholder="YYYY"
-                placeholderTextColor={colors.textPlaceholder}
-                keyboardType="numeric"
-                maxLength={4}
-                value={expYear}
-                onChangeText={(v) => handleChange("expYear", v, setExpYear)}
-              />
-              {errors.expYear && (
-                <Text style={styles.errorText}>{errors.expYear}</Text>
-              )}
-            </View>
-          </View>
-
-          <Text style={styles.inputLabel}>Security Code*</Text>
-          <TextInput
-            style={[...inputStyle("cvv"), { width: 120 }]}
-            placeholder="CVV"
-            placeholderTextColor={colors.textPlaceholder}
-            keyboardType="numeric"
-            maxLength={4}
-            secureTextEntry
-            value={cvv}
-            onChangeText={(v) => handleChange("cvv", v, setCvv)}
-          />
-          {errors.cvv && <Text style={styles.errorText}>{errors.cvv}</Text>}
-        </View>
-
-        {/* Order Items */}
         <Text style={[styles.sectionLabel, { marginTop: 28 }]}>
           Order Items
         </Text>
         {cartItems.map(({ product, quantity }) => (
           <View key={product.id} style={styles.orderItem}>
-            <Image
-              source={product.image}
-              style={styles.orderImage}
-              resizeMode="contain"
-            />
+            {product.image ? (
+              <Image
+                source={product.image}
+                style={styles.orderImage}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={styles.orderImage} />
+            )}
             <View style={styles.orderInfo}>
               <Text style={styles.orderName}>{product.name}</Text>
               <Text style={styles.orderQty}>Qty: {quantity}</Text>
@@ -428,15 +377,12 @@ const Payment: React.FC = () => {
           </View>
         ))}
 
-        {/* Summary */}
-        <Text style={[styles.sectionLabel, { marginTop: 28 }]}>
-          Order Summary
-        </Text>
+        <Text style={[styles.sectionLabel, { marginTop: 28 }]}>Ringkasan</Text>
         <View style={styles.summaryCard}>
           {[
             ["Subtotal", totalPrice],
             ["Admin Fee", adminFee],
-            ["Shipping", 0],
+            ["Pick Up", 0],
           ].map(([label, val]) => (
             <View key={label as string} style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>{label}</Text>
@@ -448,73 +394,26 @@ const Payment: React.FC = () => {
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>
-              {formatRupiah(totalPrice + adminFee)}
-            </Text>
+            <Text style={styles.totalValue}>{formatRupiah(totalAmount)}</Text>
           </View>
         </View>
 
-        {attempted && Object.keys(errors).length > 0 && (
-          <View style={styles.errorSummary}>
-            <Ionicons name="alert-circle" size={18} color="#FF3B30" />
-            <Text style={styles.errorSummaryText}>
-              Please fill in all required fields above.
-            </Text>
-          </View>
-        )}
         <View style={{ height: 30 }} />
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.payBtn} onPress={handlePayment}>
-          <Text style={styles.payBtnText}>Payment</Text>
+        <TouchableOpacity
+          style={[styles.payBtn, submitting && styles.payBtnDisabled]}
+          onPress={submitOrder}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.payBtnText}>Kirim Order</Text>
+          )}
         </TouchableOpacity>
       </View>
-
-      {/* Success Modal */}
-      <Modal visible={showSuccess} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalIcon}>
-              <Ionicons name="checkmark-circle" size={56} color="#34C759" />
-            </View>
-            <Text style={styles.modalTitle}>Payment Success!</Text>
-            <Text style={styles.modalAmount}>
-              {formatRupiah(totalPrice + adminFee)}
-            </Text>
-            <View style={styles.modalDivider} />
-            {[
-              ["Ref Number", refNumber],
-              ["Payment Time", paymentTime],
-              ["Payment Method", "Credit Card"],
-              ["Sender Name", cardName || name],
-            ].map(([label, val]) => (
-              <View key={label} style={styles.modalRow}>
-                <Text style={styles.modalLabel}>{label}</Text>
-                <Text style={styles.modalValue}>{val}</Text>
-              </View>
-            ))}
-            <View style={styles.modalDivider} />
-            {[
-              ["Amount", totalPrice],
-              ["Admin Fee", adminFee],
-            ].map(([label, val]) => (
-              <View key={label as string} style={styles.modalRow}>
-                <Text style={styles.modalLabel}>{label}</Text>
-                <Text style={styles.modalValue}>
-                  {formatRupiah(val as number)}
-                </Text>
-              </View>
-            ))}
-            <TouchableOpacity
-              style={styles.continueBtn}
-              onPress={handleContinue}
-            >
-              <Text style={styles.continueBtnText}>Continue</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
