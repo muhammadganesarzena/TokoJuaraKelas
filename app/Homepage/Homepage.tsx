@@ -213,6 +213,17 @@ const Homepage: React.FC = () => {
 
             <TouchableOpacity
               style={styles.headerIcon}
+              onPress={() => router.push("/chat" as any)}
+            >
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.headerIcon}
               onPress={() => router.push("/Cart/Cart")}
             >
               <Ionicons name="cart-outline" size={24} color={colors.text} />
@@ -316,6 +327,17 @@ const Homepage: React.FC = () => {
           onPress={() => router.push("/Wishlist/Wishlist")}
         >
           <Ionicons name="heart-outline" size={24} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => router.push("/chat" as any)}
+        >
+          <Ionicons
+            name="chatbubble-ellipses-outline"
+            size={24}
+            color={colors.textMuted}
+          />
         </TouchableOpacity>
 
         <TouchableOpacity

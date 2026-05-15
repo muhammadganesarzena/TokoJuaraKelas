@@ -9,6 +9,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 const TAB_ORDER = [
   "/Homepage/Homepage",
   "/History/History",
+  "/chat",
   "/Wishlist/Wishlist",
   "/Profile/Profile",
 ];
@@ -95,6 +96,7 @@ export default function RootLayout() {
                   options={{ animation: "slide_from_right" }}
                 />
                 <Stack.Screen name="History/History" />
+                <Stack.Screen name="chat" />
                 <Stack.Screen
                   name="History/HistoryDetail"
                   options={{ animation: "slide_from_right" }}
@@ -123,6 +125,10 @@ export default function RootLayout() {
                 />
                 <Stack.Screen
                   name="admin/users"
+                  options={{ animation: "fade" }}
+                />
+                <Stack.Screen
+                  name="admin/chat"
                   options={{ animation: "fade" }}
                 />
               </Stack>

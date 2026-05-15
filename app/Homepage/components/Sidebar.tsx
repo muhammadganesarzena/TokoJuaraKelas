@@ -29,6 +29,11 @@ const NAV_ITEMS = [
   { label: "Home", icon: "home-outline", route: "/Homepage/Homepage" },
   { label: "Wishlist", icon: "heart-outline", route: "/Wishlist/Wishlist" },
   { label: "History", icon: "time-outline", route: "/History/History" },
+  {
+    label: "Chat Admin",
+    icon: "chatbubble-ellipses-outline",
+    route: "/chat",
+  },
   { label: "Profile", icon: "person-outline", route: "/Profile/Profile" },
 ];
 

@@ -1,14 +1,14 @@
 import { router } from "expo-router";
 import React from "react";
 import {
-    Alert,
-    Animated,
-    Dimensions,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  Alert,
+  Animated,
+  Dimensions,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 
 const { width } = Dimensions.get("window");
@@ -25,6 +25,7 @@ const MENU_ITEMS: MenuItem[] = [
   { label: "Produk", route: "/admin/products", icon: "📦" },
   { label: "Kategori", route: "/admin/categories", icon: "🏷️" },
   { label: "Order", route: "/admin/orders", icon: "🛒" },
+  { label: "Chat", route: "/admin/chat", icon: "💬" },
   { label: "User", route: "/admin/users", icon: "👥" },
 ];
 
