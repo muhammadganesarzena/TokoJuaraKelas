@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import UserBottomNav from "../components/UserBottomNav";
 import { useCart } from "../context/CartContext";
 import { useProducts } from "../context/ProductContext";
 import { useTheme } from "../context/ThemeContext";
@@ -114,30 +115,7 @@ const Wishlist = () => {
         />
       )}
 
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/Homepage/Homepage")}
-        >
-          <Ionicons name="home-outline" size={24} color={colors.textMuted} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/History/History")}
-        >
-          <Ionicons name="time-outline" size={24} color={colors.textMuted} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="heart" size={24} color="#2D6A4F" />
-          <View style={styles.navDot} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/Profile/Profile")}
-        >
-          <Ionicons name="person-outline" size={24} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
+      <UserBottomNav active="wishlist" />
     </View>
   );
 };

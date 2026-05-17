@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import UserBottomNav from "../components/UserBottomNav";
 import { useCart } from "../context/CartContext";
 import type { Category, Product } from "../context/ProductContext";
 import { useProducts } from "../context/ProductContext";
@@ -46,7 +47,7 @@ const Homepage: React.FC = () => {
   useFocusEffect(
     useCallback(() => {
       refreshProducts();
-    }, []),
+    }, [refreshProducts]),
   );
 
   const recommendedScale = useRef(new Animated.Value(1)).current;
@@ -305,48 +306,7 @@ const Homepage: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* Bottom Nav */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/Homepage/Homepage")}
-        >
-          <Ionicons name="home" size={24} color="#2D6A4F" />
-          <View style={styles.navDot} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/History/History")}
-        >
-          <Ionicons name="time-outline" size={24} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/Wishlist/Wishlist")}
-        >
-          <Ionicons name="heart-outline" size={24} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/chat" as any)}
-        >
-          <Ionicons
-            name="chatbubble-ellipses-outline"
-            size={24}
-            color={colors.textMuted}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/Profile/Profile")}
-        >
-          <Ionicons name="person-outline" size={24} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
+      <UserBottomNav active="home" />
 
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
     </View>

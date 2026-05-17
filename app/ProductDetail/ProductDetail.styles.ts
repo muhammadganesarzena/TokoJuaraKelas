@@ -81,6 +81,12 @@ export const getStyles = (colors: Colors) =>
       width: width * 0.62,
       height: 320,
     },
+    imageFallback: {
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.card,
+      borderRadius: 16,
+    },
 
     // ── Thumbnails ────────────────────────────────────────────
     thumbRow: {

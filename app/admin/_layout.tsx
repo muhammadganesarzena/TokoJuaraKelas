@@ -7,6 +7,7 @@ export default function AdminLayout() {
       <Stack.Screen name="overview" />
       <Stack.Screen name="products" />
       <Stack.Screen name="categories" />
+      <Stack.Screen name="inventory-nfc" />
       <Stack.Screen name="orders" />
       <Stack.Screen name="users" />
     </Stack>

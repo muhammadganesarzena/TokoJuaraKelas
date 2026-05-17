@@ -1,15 +1,22 @@
 import { Redirect } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
+import { getAdminSession } from "../lib/adminSession";
 import { supabase } from "../lib/supabase";
 
 export default function Login() {
   const [redirectTo, setRedirectTo] = useState<
-    "/Homepage/Homepage" | "/LoginScreen/LoginScreen" | null
+    "/admin/overview" | "/Homepage/Homepage" | "/LoginScreen/LoginScreen" | null
   >(null);
 
   useEffect(() => {
     const checkSession = async () => {
+      const adminSession = await getAdminSession();
+      if (adminSession) {
+        setRedirectTo("/admin/overview");
+        return;
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();

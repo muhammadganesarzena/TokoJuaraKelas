@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import UserBottomNav from "../components/UserBottomNav";
 import { useHistory, type HistoryItem } from "../context/HistoryContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -43,7 +44,7 @@ const History: React.FC = () => {
     } else {
       sheetAnim.setValue(400);
     }
-  }, [showFilter]);
+  }, [showFilter, sheetAnim]);
 
   const filtered = historyItems
     .filter((item) => {
@@ -281,39 +282,7 @@ const History: React.FC = () => {
         />
       )}
 
-      {/* Bottom nav */}
-      <View
-        style={[
-          styles.bottomNav,
-          {
-            backgroundColor: colors.navBar,
-            borderTopColor: colors.borderLight,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/Homepage/Homepage")}
-        >
-          <Ionicons name="home-outline" size={24} color={colors.textMuted} />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="time" size={24} color={ORANGE} />
-          <View style={styles.navDot} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/Wishlist/Wishlist")}
-        >
-          <Ionicons name="heart-outline" size={24} color={colors.textMuted} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/Profile/Profile")}
-        >
-          <Ionicons name="person-outline" size={24} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
+      <UserBottomNav active="history" />
 
       <Modal
         visible={showFilter}
@@ -473,19 +442,6 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontWeight: "700", marginTop: 8 },
   emptyDesc: { fontSize: 14, textAlign: "center", lineHeight: 20 },
-  bottomNav: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    borderTopWidth: 1,
-    paddingBottom: 28,
-    paddingTop: 12,
-  },
-  navItem: { flex: 1, alignItems: "center", gap: 4 },
-  navDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: ORANGE },
-
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",

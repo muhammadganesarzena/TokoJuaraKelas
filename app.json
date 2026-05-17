@@ -14,6 +14,10 @@
     },
     "android": {
       "package": "com.tokojuarakelas.app",
+      "permissions": [
+        "NFC",
+        "android.permission.NFC"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -29,7 +33,10 @@
               "scheme": "tokojuarakelas"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -51,11 +58,18 @@
           }
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "react-native-nfc-manager"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "976e369a-efdb-4003-bb02-76006c1b7f9d"
+      }
     }
   }
 }

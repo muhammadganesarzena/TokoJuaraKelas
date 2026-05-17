@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { supabase } from "../../lib/supabase";
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -49,12 +55,7 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({
   // Category Filter
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, []);
-
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setLoadingProducts(true);
 
     const { data, error } = await supabase
@@ -86,9 +87,9 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     setLoadingProducts(false);
-  };
+  }, []);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     const { data, error } = await supabase
       .from("categories")
       .select("*")
@@ -102,7 +103,12 @@ export const ProductProvider: React.FC<{ children: React.ReactNode }> = ({
     if (data) {
       setCategories(data);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+  }, [fetchCategories, fetchProducts]);
 
   const toggleLike = (id: string) => {
     setLikedProducts((prev) => ({

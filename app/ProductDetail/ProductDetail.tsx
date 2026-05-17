@@ -4,6 +4,7 @@ import {
     ActivityIndicator,
     Alert,
     Image,
+    ImageSourcePropType,
     ScrollView,
     StatusBar,
     Text,
@@ -23,15 +24,53 @@ const ProductDetail: React.FC = () => {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { products, recommended, likedProducts, toggleLike } = useProducts();
+  const {
+    products,
+    recommended,
+    likedProducts,
+    loadingProducts,
+    toggleLike,
+  } = useProducts();
   const { addToCart, buyNow } = useCart();
 
   const [selectedThumb, setSelectedThumb] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   const allProducts = [...products, ...recommended];
   const product = allProducts.find((p) => p.id === id);
+
+  const renderProductImage = (
+    source: ImageSourcePropType | null | undefined,
+    imageStyle: any,
+    fallbackSize: number,
+  ) =>
+    source && !imageFailed ? (
+      <Image
+        source={source}
+        style={imageStyle}
+        resizeMode="contain"
+        onError={() => setImageFailed(true)}
+      />
+    ) : (
+      <View style={[imageStyle, styles.imageFallback]}>
+        <Ionicons
+          name="musical-instruments-outline"
+          size={fallbackSize}
+          color={colors.textMuted}
+        />
+      </View>
+    );
+
+  if (loadingProducts) {
+    return (
+      <View style={styles.notFound}>
+        <ActivityIndicator size="large" color="#E8622A" />
+        <Text style={styles.notFoundText}>Memuat produk...</Text>
+      </View>
+    );
+  }
 
   if (!product) {
     return (
@@ -45,7 +84,10 @@ const ProductDetail: React.FC = () => {
   }
 
   const liked = likedProducts[product.id] || false;
-  const thumbs = [product.image, product.image, product.image];
+  const imageSource = product.image_url?.trim()
+    ? { uri: product.image_url.trim() }
+    : product.image;
+  const thumbs = [imageSource, imageSource, imageSource];
 
   const handleAddToCart = () => {
     addToCart(product);
@@ -96,11 +138,7 @@ const ProductDetail: React.FC = () => {
               color={liked ? "#FF0000" : colors.text}
             />
           </TouchableOpacity>
-          <Image
-            source={thumbs[selectedThumb]}
-            style={styles.heroImage}
-            resizeMode="contain"
-          />
+          {renderProductImage(thumbs[selectedThumb], styles.heroImage, 86)}
         </View>
 
         {/* Thumbnails */}
@@ -114,11 +152,7 @@ const ProductDetail: React.FC = () => {
                 selectedThumb === idx && styles.thumbCardActive,
               ]}
             >
-              <Image
-                source={img}
-                style={styles.thumbImage}
-                resizeMode="contain"
-              />
+              {renderProductImage(img, styles.thumbImage, 24)}
             </TouchableOpacity>
           ))}
         </View>

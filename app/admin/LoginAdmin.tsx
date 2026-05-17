@@ -1,14 +1,15 @@
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { saveAdminSession } from "../../lib/adminSession";
 import { supabase } from "../../lib/supabase";
 
 export default function LoginAdmin() {
@@ -36,7 +37,13 @@ export default function LoginAdmin() {
         return;
       }
 
-      router.replace("/admin/Dashboard");
+      await supabase.auth.signOut();
+      await saveAdminSession({
+        id: data.id,
+        email: data.email,
+        name: data.name || data.full_name,
+      });
+      router.replace("/admin/overview");
     } catch (error: any) {
       Alert.alert("Error", error.message);
     } finally {

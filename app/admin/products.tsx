@@ -1,8 +1,10 @@
+import * as ImagePicker from "expo-image-picker";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
     FlatList,
+    Image,
     Modal,
     ScrollView,
     StyleSheet,
@@ -28,6 +30,46 @@ type Product = {
 
 type Category = { id: string; name: string };
 
+type PickedImage = {
+  uri: string;
+  base64?: string | null;
+  mimeType?: string | null;
+  fileName?: string | null;
+};
+
+const base64ToArrayBuffer = (base64: string) => {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const clean = base64.replace(/[^A-Za-z0-9+/=]/g, "");
+  const bytes: number[] = [];
+
+  for (let i = 0; i < clean.length; i += 4) {
+    const enc1 = chars.indexOf(clean.charAt(i));
+    const enc2 = chars.indexOf(clean.charAt(i + 1));
+    const enc3 = chars.indexOf(clean.charAt(i + 2));
+    const enc4 = chars.indexOf(clean.charAt(i + 3));
+    const chr1 = (enc1 << 2) | (enc2 >> 4);
+    const chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+    const chr3 = ((enc3 & 3) << 6) | enc4;
+
+    bytes.push(chr1);
+    if (enc3 !== 64 && enc3 !== -1) bytes.push(chr2);
+    if (enc4 !== 64 && enc4 !== -1) bytes.push(chr3);
+  }
+
+  return new Uint8Array(bytes).buffer;
+};
+
+const makeImagePath = (name: string, fileName?: string | null) => {
+  const safeName = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  const ext = fileName?.split(".").pop() || "jpg";
+  return `${safeName || "produk"}-${Date.now()}.${ext}`;
+};
+
 export default function Products() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -42,7 +84,9 @@ export default function Products() {
   const [pDesc, setPDesc] = useState("");
   const [pBrand, setPBrand] = useState("");
   const [pImage, setPImage] = useState("");
+  const [pickedImage, setPickedImage] = useState<PickedImage | null>(null);
   const [pCategory, setPCategory] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -70,6 +114,7 @@ export default function Products() {
     setPDesc("");
     setPBrand("");
     setPImage("");
+    setPickedImage(null);
     setPCategory("");
     setModal(true);
   };
@@ -82,8 +127,38 @@ export default function Products() {
     setPDesc(p.description || "");
     setPBrand(p.brand || "");
     setPImage(p.image_url || "");
+    setPickedImage(null);
     setPCategory(p.category_id || "");
     setModal(true);
+  };
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      setPickedImage(result.assets[0]);
+    }
+  };
+
+  const uploadProductImage = async () => {
+    if (!pickedImage?.base64) return pImage.trim();
+
+    const path = makeImagePath(pName, pickedImage.fileName);
+    const { error } = await supabase.storage
+      .from("product-images")
+      .upload(path, base64ToArrayBuffer(pickedImage.base64), {
+        contentType: pickedImage.mimeType || "image/jpeg",
+        upsert: true,
+      });
+
+    if (error) throw error;
+
+    const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+    return data.publicUrl;
   };
 
   const save = async () => {
@@ -91,34 +166,38 @@ export default function Products() {
       Alert.alert("Error", "Nama, harga, dan stok wajib diisi.");
       return;
     }
-    const payload = {
-      name: pName.trim(),
-      price: parseInt(pPrice),
-      stock: parseInt(pStock),
-      description: pDesc.trim(),
-      brand: pBrand.trim(),
-      image_url: pImage.trim(),
-      category_id: pCategory || null,
-    };
 
-    if (editProduct) {
-      const { error } = await supabase
-        .from("products")
-        .update(payload)
-        .eq("id", editProduct.id);
-      if (error) {
-        Alert.alert("Error", error.message);
-        return;
+    setSaving(true);
+    try {
+      const imageUrl = await uploadProductImage();
+      const payload = {
+        name: pName.trim(),
+        price: parseInt(pPrice),
+        stock: parseInt(pStock),
+        description: pDesc.trim(),
+        brand: pBrand.trim(),
+        image_url: imageUrl,
+        category_id: pCategory || null,
+      };
+
+      if (editProduct) {
+        const { error } = await supabase
+          .from("products")
+          .update(payload)
+          .eq("id", editProduct.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("products").insert(payload);
+        if (error) throw error;
       }
-    } else {
-      const { error } = await supabase.from("products").insert(payload);
-      if (error) {
-        Alert.alert("Error", error.message);
-        return;
-      }
+
+      setModal(false);
+      fetchData();
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Gagal menyimpan produk.");
+    } finally {
+      setSaving(false);
     }
-    setModal(false);
-    fetchData();
   };
 
   const deleteProduct = (id: string) => {
@@ -156,6 +235,13 @@ export default function Products() {
           contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
           renderItem={({ item }) => (
             <View style={styles.card}>
+              {item.image_url ? (
+                <Image
+                  source={{ uri: item.image_url }}
+                  style={styles.productThumb}
+                  resizeMode="cover"
+                />
+              ) : null}
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>{item.name}</Text>
                 <Text style={styles.cardSub}>
@@ -223,12 +309,6 @@ export default function Products() {
                   placeholder: "Stabilo",
                 },
                 {
-                  label: "URL Gambar",
-                  value: pImage,
-                  setter: setPImage,
-                  placeholder: "https://...",
-                },
-                {
                   label: "Deskripsi",
                   value: pDesc,
                   setter: setPDesc,
@@ -251,6 +331,27 @@ export default function Products() {
                   />
                 </View>
               ))}
+
+              <Text style={styles.inputLabel}>Gambar Produk</Text>
+              <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+                {pickedImage?.uri || pImage ? (
+                  <Image
+                    source={{ uri: pickedImage?.uri || pImage }}
+                    style={styles.previewImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <Text style={styles.imagePlaceholderIcon}>+</Text>
+                    <Text style={styles.imagePlaceholderText}>
+                      Pilih gambar dari galeri
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.helperText}>
+                Gambar akan di-upload ke Supabase Storage otomatis.
+              </Text>
 
               <Text style={styles.inputLabel}>Kategori</Text>
               <ScrollView
@@ -279,10 +380,18 @@ export default function Products() {
                 ))}
               </ScrollView>
 
-              <TouchableOpacity style={styles.saveBtn} onPress={save}>
-                <Text style={styles.saveBtnText}>
-                  {editProduct ? "Simpan Perubahan" : "Tambah Produk"}
-                </Text>
+              <TouchableOpacity
+                style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+                onPress={save}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.saveBtnText}>
+                    {editProduct ? "Simpan Perubahan" : "Tambah Produk"}
+                  </Text>
+                )}
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.cancelBtn}
@@ -326,6 +435,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
+  },
+  productThumb: {
+    width: 54,
+    height: 54,
+    borderRadius: 10,
+    backgroundColor: "#f0f0f0",
+    marginRight: 12,
   },
   cardTitle: { fontSize: 14, fontWeight: "700", color: "#1a1a2e" },
   cardSub: { fontSize: 12, color: "#2D6A4F", marginTop: 2 },
@@ -375,6 +491,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e0e0e0",
   },
+  imagePicker: {
+    height: 190,
+    borderRadius: 14,
+    backgroundColor: "#f5f5f5",
+    borderWidth: 1.5,
+    borderColor: "#dcdcdc",
+    borderStyle: "dashed",
+    overflow: "hidden",
+  },
+  previewImage: { width: "100%", height: "100%" },
+  imagePlaceholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imagePlaceholderIcon: {
+    fontSize: 34,
+    lineHeight: 38,
+    color: "#2D6A4F",
+    fontWeight: "900",
+  },
+  imagePlaceholderText: {
+    fontSize: 13,
+    color: "#555",
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  helperText: { fontSize: 11, color: "#888", marginTop: 6 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -394,6 +538,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 20,
   },
+  saveBtnDisabled: { opacity: 0.7 },
   saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   cancelBtn: { paddingVertical: 14, alignItems: "center" },
   cancelBtnText: { color: "#888", fontSize: 14 },

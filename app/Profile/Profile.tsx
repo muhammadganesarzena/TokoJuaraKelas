@@ -12,7 +12,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { clearAdminSession } from "../../lib/adminSession";
 import { supabase } from "../../lib/supabase";
+import UserBottomNav from "../components/UserBottomNav";
 import { useProfile } from "../context/ProfileContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -23,6 +25,24 @@ type OrderCounts = {
   proses: number;
   dikirim: number;
   selesai: number;
+};
+
+const countOrderStatus = (status?: string | null) => {
+  const normalized = (status || "").toLowerCase();
+
+  if (["accepted", "completed", "selesai"].includes(normalized)) {
+    return "selesai";
+  }
+
+  if (["dikirim", "shipped", "delivering"].includes(normalized)) {
+    return "dikirim";
+  }
+
+  if (["pending", "processing", "proses"].includes(normalized)) {
+    return "proses";
+  }
+
+  return null;
 };
 
 export default function Profile() {
@@ -50,13 +70,8 @@ export default function Profile() {
 
       const counts = { proses: 0, dikirim: 0, selesai: 0 };
       (data || []).forEach((order: any) => {
-        if (["proses", "processing", "accepted"].includes(order.status)) {
-          counts.proses += 1;
-        } else if (order.status === "dikirim") {
-          counts.dikirim += 1;
-        } else if (["selesai", "completed"].includes(order.status)) {
-          counts.selesai += 1;
-        }
+        const countedStatus = countOrderStatus(order.status);
+        if (countedStatus) counts[countedStatus] += 1;
       });
 
       setOrderCounts(counts);
@@ -81,93 +96,101 @@ export default function Profile() {
   }
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar
         barStyle={colors.statusBar}
         backgroundColor={colors.background}
       />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={[styles.backBtn, { borderColor: colors.border }]}
-          onPress={() => router.push("/Homepage/Homepage")}
-        >
-          <Ionicons name="arrow-back" size={20} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {/* Avatar */}
-      <View style={styles.avatarWrapper}>
-        <Image
-          source={{ uri: profile.image || DEFAULT_IMAGE }}
-          style={styles.avatar}
-        />
-      </View>
-
-      {/* Info */}
-      <Text style={[styles.name, { color: colors.text }]}>{profile.name}</Text>
-      <Text style={[styles.email, { color: colors.textSecondary }]}>
-        {profile.email}
-      </Text>
-      <Text style={[styles.nim, { color: colors.textSecondary }]}>
-        {profile.nim}
-      </Text>
-
-      {/* Order Monitor */}
-      <View style={[styles.card, { backgroundColor: colors.card }]}>
-        <View style={styles.monitorHeader}>
-          <Text style={[styles.monitorTitle, { color: colors.text }]}>
-            Monitoring Pesanan
-          </Text>
-          <TouchableOpacity onPress={() => router.push("/History/History")}>
-            <Text style={styles.monitorLink}>Lihat semua</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.statusGrid}>
-          <OrderStatus
-            label="Proses"
-            count={orderCounts.proses}
-            icon="reload-circle-outline"
-            color="#1976D2"
-          />
-          <OrderStatus
-            label="Dikirim"
-            count={orderCounts.dikirim}
-            icon="bicycle-outline"
-            color="#7B1FA2"
-          />
-          <OrderStatus
-            label="Selesai"
-            count={orderCounts.selesai}
-            icon="checkmark-circle-outline"
-            color="#2D6A4F"
-          />
-        </View>
-      </View>
-
-      {/* Logout Card */}
-      <TouchableOpacity
-        style={[styles.card, { backgroundColor: colors.card }]}
-        onPress={() => setLogoutVisible(true)}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.menuItem}>
-          <MaterialIcons
-            name="logout"
-            size={20}
-            color={colors.text}
-            style={styles.menuIcon}
-          />
-          <Text style={[styles.menuText, { color: colors.text }]}>Log out</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={[styles.backBtn, { borderColor: colors.border }]}
+            onPress={() => router.push("/Homepage/Homepage")}
+          >
+            <Ionicons name="arrow-back" size={20} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
+          <View style={{ width: 40 }} />
         </View>
-      </TouchableOpacity>
+
+        {/* Avatar */}
+        <View style={styles.avatarWrapper}>
+          <Image
+            source={{ uri: profile.image || DEFAULT_IMAGE }}
+            style={styles.avatar}
+          />
+        </View>
+
+        {/* Info */}
+        <Text style={[styles.name, { color: colors.text }]}>
+          {profile.name}
+        </Text>
+        <Text style={[styles.email, { color: colors.textSecondary }]}>
+          {profile.email}
+        </Text>
+        <Text style={[styles.nim, { color: colors.textSecondary }]}>
+          {profile.nim}
+        </Text>
+
+        {/* Order Monitor */}
+        <View style={[styles.card, { backgroundColor: colors.card }]}>
+          <View style={styles.monitorHeader}>
+            <Text style={[styles.monitorTitle, { color: colors.text }]}>
+              Monitoring Pesanan
+            </Text>
+            <TouchableOpacity onPress={() => router.push("/History/History")}>
+              <Text style={styles.monitorLink}>Lihat semua</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.statusGrid}>
+            <OrderStatus
+              label="Proses"
+              count={orderCounts.proses}
+              icon="reload-circle-outline"
+              color="#1976D2"
+            />
+            <OrderStatus
+              label="Dikirim"
+              count={orderCounts.dikirim}
+              icon="bicycle-outline"
+              color="#7B1FA2"
+            />
+            <OrderStatus
+              label="Selesai"
+              count={orderCounts.selesai}
+              icon="checkmark-circle-outline"
+              color="#2D6A4F"
+            />
+          </View>
+        </View>
+
+        {/* Logout Card */}
+        <TouchableOpacity
+          style={[styles.card, { backgroundColor: colors.card }]}
+          onPress={() => setLogoutVisible(true)}
+        >
+          <View style={styles.menuItem}>
+            <MaterialIcons
+              name="logout"
+              size={20}
+              color={colors.text}
+              style={styles.menuIcon}
+            />
+            <Text style={[styles.menuText, { color: colors.text }]}>
+              Log out
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </ScrollView>
+
+      <UserBottomNav active="profile" />
 
       {/* Modal Logout */}
       <Modal transparent visible={logoutVisible} animationType="fade">
@@ -188,6 +211,7 @@ export default function Profile() {
               style={styles.logoutBtn}
               onPress={async () => {
                 setLogoutVisible(false);
+                await clearAdminSession();
                 await supabase.auth.signOut();
                 router.replace("/login");
               }}
@@ -208,7 +232,7 @@ export default function Profile() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -238,10 +262,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: 20,
     paddingTop: 56,
-    paddingBottom: 32,
+    paddingBottom: 120,
   },
   header: {
     flexDirection: "row",

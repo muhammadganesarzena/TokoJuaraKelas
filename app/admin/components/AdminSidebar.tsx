@@ -12,6 +12,8 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import { supabase } from "../../../lib/supabase";
+import { clearAdminSession } from "../../../lib/adminSession";
 
 import { useTheme } from "../../context/ThemeContext";
 
@@ -28,6 +30,7 @@ const MENU_ITEMS: MenuItem[] = [
   { label: "Overview", route: "/admin/overview", icon: "bar-chart-outline" },
   { label: "Produk", route: "/admin/products", icon: "cube-outline" },
   { label: "Kategori", route: "/admin/categories", icon: "pricetag-outline" },
+  { label: "Stok NFC", route: "/admin/inventory-nfc", icon: "radio-outline" },
   { label: "Order", route: "/admin/orders", icon: "cart-outline" },
   {
     label: "Chat",
@@ -92,7 +95,7 @@ export default function AdminSidebar({ isOpen, onClose, activeRoute }: Props) {
         anim.translateX.setValue(-30);
       });
     }
-  }, [isOpen]);
+  }, [isOpen, itemAnimations, translateX]);
 
   const handleLogout = () => {
     Alert.alert("Logout", "Yakin ingin keluar dari Admin Panel?", [
@@ -100,9 +103,11 @@ export default function AdminSidebar({ isOpen, onClose, activeRoute }: Props) {
       {
         text: "Logout",
         style: "destructive",
-        onPress: () => {
+        onPress: async () => {
           onClose();
-          router.replace("/login");
+          await clearAdminSession();
+          await supabase.auth.signOut();
+          router.replace("/LoginScreen/LoginScreen");
         },
       },
     ]);
@@ -111,7 +116,7 @@ export default function AdminSidebar({ isOpen, onClose, activeRoute }: Props) {
   if (!isOpen) return null;
 
   return (
-    <View style={StyleSheet.absoluteFill}>
+    <View style={styles.sidebarLayer}>
       {/* Overlay */}
       <TouchableWithoutFeedback onPress={onClose}>
         <View
@@ -284,8 +289,16 @@ export default function AdminSidebar({ isOpen, onClose, activeRoute }: Props) {
 }
 
 const styles = StyleSheet.create({
+  sidebarLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+    elevation: 9999,
+  },
+
   overlay: {
     ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
+    elevation: 1,
   },
 
   sidebar: {
@@ -296,6 +309,8 @@ const styles = StyleSheet.create({
     width: SIDEBAR_WIDTH,
     paddingTop: 60,
     paddingBottom: 40,
+    zIndex: 2,
+    elevation: 10000,
   },
 
   sidebarHeader: {

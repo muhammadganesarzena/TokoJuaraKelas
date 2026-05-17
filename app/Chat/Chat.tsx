@@ -1,19 +1,20 @@
 import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { supabase } from "../../lib/supabase";
+import UserBottomNav from "../components/UserBottomNav";
 import { useTheme } from "../context/ThemeContext";
 
 type ChatMessage = {
@@ -42,8 +43,9 @@ export default function Chat() {
 
     fetchMessages(userId);
 
+    const channelName = `chat-user-${userId}-${Date.now()}`;
     const channel = supabase
-      .channel(`chat-user-${userId}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -64,7 +66,7 @@ export default function Chat() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [userId]);
 
@@ -252,6 +254,8 @@ export default function Chat() {
           )}
         </TouchableOpacity>
       </View>
+
+      <UserBottomNav active="chat" />
     </KeyboardAvoidingView>
   );
 }
@@ -307,6 +311,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 18,
+    marginBottom: 98,
     borderTopWidth: 1,
   },
   input: {

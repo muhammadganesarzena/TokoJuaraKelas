@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { clearAdminSession } from "../../lib/adminSession";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../context/ThemeContext";
 import { getStyles } from "./LoginScreen.styles";
@@ -77,6 +78,7 @@ const RegisterScreen: React.FC = () => {
       }
 
       if (profile) {
+        await clearAdminSession();
         router.replace("/Homepage/Homepage");
         return;
       }
@@ -142,6 +144,7 @@ const RegisterScreen: React.FC = () => {
           session.user.id,
           session.user.email || trimmedEmail,
         );
+        await clearAdminSession();
 
         Alert.alert("Sukses", "Profil berhasil disimpan.", [
           {
@@ -204,6 +207,7 @@ const RegisterScreen: React.FC = () => {
       }
 
       await createProfile(data.user.id, data.user.email || trimmedEmail);
+      await clearAdminSession();
 
       Alert.alert("Sukses", "Akun berhasil diverifikasi.", [
         {

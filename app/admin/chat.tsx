@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
 import AdminHeader from "./components/AdminHeader";
@@ -46,7 +46,12 @@ export default function AdminChat() {
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList<ChatMessage>>(null);
-  const selectedUserId = selectedUser?.id;
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const selectedUserRef = useRef<UserProfile | null>(null);
+
+  useEffect(() => {
+    selectedUserRef.current = selectedUser;
+  }, [selectedUser]);
 
   const conversations = useMemo<Conversation[]>(() => {
     return profiles
@@ -66,35 +71,49 @@ export default function AdminChat() {
   }, []);
 
   useEffect(() => {
+    if (channelRef.current) return;
+
     const channel = supabase
-      .channel("admin-chat-conversations")
+      .channel(`admin-chat-conversations-${Date.now()}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "chat_messages" },
         (payload) => {
           const incoming = payload.new as ChatMessage;
+
           setLatestMessages((current) => ({
             ...current,
             [incoming.user_id]: incoming,
           }));
-          setMessages((current) =>
-            selectedUserId === incoming.user_id &&
-            !current.some((item) => item.id === incoming.id)
-              ? [...current, incoming]
-              : current,
-          );
+
+          setMessages((current) => {
+            const activeUser = selectedUserRef.current;
+            if (
+              activeUser?.id === incoming.user_id &&
+              !current.some((item) => item.id === incoming.id)
+            ) {
+              return [...current, incoming];
+            }
+
+            return current;
+          });
         },
       )
       .subscribe();
 
+    channelRef.current = channel;
+
     return () => {
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
-  }, [selectedUserId]);
+  }, []);
 
   useEffect(() => {
-    if (selectedUserId) fetchMessages(selectedUserId);
-  }, [selectedUserId]);
+    if (selectedUser) fetchMessages(selectedUser.id);
+  }, [selectedUser]);
 
   useEffect(() => {
     if (messages.length > 0) {

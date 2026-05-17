@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { clearAdminSession, saveAdminSession } from "../../lib/adminSession";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../context/ThemeContext";
 import { getStyles } from "./LoginScreen.styles";
@@ -85,6 +86,7 @@ const LoginScreen: React.FC = () => {
         return;
       }
 
+      await clearAdminSession();
       router.replace("/Homepage/Homepage");
     } catch (error: any) {
       Alert.alert("Google Login Error", error.message);
@@ -125,6 +127,12 @@ const LoginScreen: React.FC = () => {
       }
 
       if (adminData) {
+        await supabase.auth.signOut();
+        await saveAdminSession({
+          id: adminData.id,
+          email: adminData.email,
+          name: adminData.name || adminData.full_name,
+        });
         router.replace("/admin/overview");
         return;
       }
@@ -144,6 +152,7 @@ const LoginScreen: React.FC = () => {
         return;
       }
 
+      await clearAdminSession();
       router.replace("/Homepage/Homepage");
     } catch {
       Alert.alert("Login Gagal", "Email atau Password salah.");

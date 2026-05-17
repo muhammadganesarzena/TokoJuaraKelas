@@ -1,17 +1,18 @@
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { clearAdminSession } from "../../lib/adminSession";
 import { supabase } from "../../lib/supabase";
 
 type Tab = "overview" | "products" | "categories" | "orders" | "users";
@@ -320,7 +321,11 @@ export default function Dashboard() {
       {
         text: "Logout",
         style: "destructive",
-        onPress: () => router.replace("/login"),
+        onPress: async () => {
+          await clearAdminSession();
+          await supabase.auth.signOut();
+          router.replace("/LoginScreen/LoginScreen");
+        },
       },
     ]);
   };
