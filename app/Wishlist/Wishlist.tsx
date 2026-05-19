@@ -71,7 +71,7 @@ const Wishlist = () => {
             style={{ marginRight: 4 }}
           />
           <Text style={styles.buttonText}>
-            {isAdded ? "Added!" : "Add to Cart"}
+            {isAdded ? "Ditambahkan!" : "Tambah ke Keranjang"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -92,16 +92,16 @@ const Wishlist = () => {
         >
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Wishlist</Text>
+        <Text style={styles.title}>Favorit</Text>
         <View style={{ width: 40 }} />
       </View>
 
       {wishlist.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="heart-outline" size={80} color={colors.textMuted} />
-          <Text style={styles.emptyTitle}>No Saved Items!</Text>
+          <Text style={styles.emptyTitle}>Belum Ada Favorit!</Text>
           <Text style={styles.emptyDesc}>
-            {"You don't have any saved items.\nGo to home and add some."}
+            {"Belum ada produk favorit.\nBuka beranda dan tambahkan produk."}
           </Text>
         </View>
       ) : (

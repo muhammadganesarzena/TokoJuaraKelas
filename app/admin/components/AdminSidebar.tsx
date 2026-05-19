@@ -27,17 +27,18 @@ type MenuItem = {
 };
 
 const MENU_ITEMS: MenuItem[] = [
-  { label: "Overview", route: "/admin/overview", icon: "bar-chart-outline" },
+  { label: "Ringkasan", route: "/admin/overview", icon: "bar-chart-outline" },
   { label: "Produk", route: "/admin/products", icon: "cube-outline" },
+  { label: "Feed Banner", route: "/admin/banners", icon: "images-outline" },
   { label: "Kategori", route: "/admin/categories", icon: "pricetag-outline" },
   { label: "Stok NFC", route: "/admin/inventory-nfc", icon: "radio-outline" },
-  { label: "Order", route: "/admin/orders", icon: "cart-outline" },
+  { label: "Pesanan", route: "/admin/orders", icon: "cart-outline" },
   {
     label: "Chat",
-    route: "/admin/chat",
+    route: "/admin/support",
     icon: "chatbubble-ellipses-outline",
   },
-  { label: "User", route: "/admin/users", icon: "people-outline" },
+  { label: "Pengguna", route: "/admin/users", icon: "people-outline" },
 ];
 
 type Props = {
@@ -98,10 +99,10 @@ export default function AdminSidebar({ isOpen, onClose, activeRoute }: Props) {
   }, [isOpen, itemAnimations, translateX]);
 
   const handleLogout = () => {
-    Alert.alert("Logout", "Yakin ingin keluar dari Admin Panel?", [
+    Alert.alert("Keluar", "Yakin ingin keluar dari Admin Panel?", [
       { text: "Batal", style: "cancel" },
       {
-        text: "Logout",
+        text: "Keluar",
         style: "destructive",
         onPress: async () => {
           onClose();
@@ -240,7 +241,7 @@ export default function AdminSidebar({ isOpen, onClose, activeRoute }: Props) {
                 },
               ]}
             >
-              Dark Mode
+              Mode Gelap
             </Text>
           </View>
 
@@ -280,7 +281,7 @@ export default function AdminSidebar({ isOpen, onClose, activeRoute }: Props) {
               },
             ]}
           >
-            Logout
+            Keluar
           </Text>
         </TouchableOpacity>
       </Animated.View>

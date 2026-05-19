@@ -1,7 +1,7 @@
 import { StyleSheet } from "react-native";
 import type { Colors } from "../context/ThemeContext";
 
-const ORANGE = "#2D6A4F";
+const ACCENT = "#2D6A4F";
 
 export const getStyles = (colors: Colors) =>
   StyleSheet.create({
@@ -85,7 +85,7 @@ export const getStyles = (colors: Colors) =>
       flexDirection: "row",
       alignItems: "center",
       borderWidth: 1,
-      borderColor: ORANGE,
+      borderColor: ACCENT,
       borderRadius: 10,
       overflow: "hidden",
     },
@@ -95,7 +95,7 @@ export const getStyles = (colors: Colors) =>
       justifyContent: "center",
       alignItems: "center",
     },
-    qtyBtnText: { fontSize: 18, color: ORANGE, fontWeight: "600" },
+    qtyBtnText: { fontSize: 18, color: ACCENT, fontWeight: "600" },
     qtyValue: {
       paddingHorizontal: 10,
       fontSize: 15,
@@ -118,9 +118,9 @@ export const getStyles = (colors: Colors) =>
       alignItems: "center",
     },
     totalLabel: { fontSize: 16, fontWeight: "600", color: colors.text },
-    totalValue: { fontSize: 20, fontWeight: "800", color: ORANGE },
+    totalValue: { fontSize: 20, fontWeight: "800", color: ACCENT },
     buyNowBtn: {
-      backgroundColor: ORANGE,
+      backgroundColor: ACCENT,
       borderRadius: 16,
       paddingVertical: 16,
       alignItems: "center",

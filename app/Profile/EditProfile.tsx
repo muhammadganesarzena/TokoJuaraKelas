@@ -4,7 +4,6 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   Image,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -12,11 +11,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import KeyboardAwareScreen from "../components/KeyboardAwareScreen";
 import { useProfile } from "../context/ProfileContext";
 import { useTheme } from "../context/ThemeContext";
 
 const DEFAULT_IMAGE = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-const ORANGE = "#2D6A4F";
+const ACCENT = "#2D6A4F";
 
 export default function EditProfile() {
   const router = useRouter();
@@ -45,10 +45,10 @@ export default function EditProfile() {
   };
 
   return (
-    <ScrollView
+    <KeyboardAwareScreen
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
+      extraScrollHeight={40}
     >
       <StatusBar
         barStyle={colors.statusBar}
@@ -63,7 +63,7 @@ export default function EditProfile() {
         >
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Edit Profile</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Ubah Profil</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -77,19 +77,19 @@ export default function EditProfile() {
 
       {/* Fields */}
       <FloatingInput
-        label="Full name"
+        label="Nama lengkap"
         value={name}
         onChangeText={setName}
         colors={colors}
       />
       <FloatingInput
-        label="Major"
+        label="Jurusan"
         value={major}
         onChangeText={setMajor}
         colors={colors}
       />
       <FloatingInput
-        label="Date of birth"
+        label="Tanggal lahir"
         value={dob}
         onChangeText={setDob}
         colors={colors}
@@ -104,7 +104,7 @@ export default function EditProfile() {
       <View style={styles.row}>
         <View style={{ flex: 1, marginRight: 8 }}>
           <FloatingInput
-            label="Class of"
+            label="Angkatan"
             value={classOf}
             onChangeText={setClassOf}
             colors={colors}
@@ -112,7 +112,7 @@ export default function EditProfile() {
         </View>
         <View style={{ flex: 1, marginLeft: 8 }}>
           <FloatingInput
-            label="Gender"
+            label="Jenis kelamin"
             value={gender}
             onChangeText={setGender}
             colors={colors}
@@ -122,9 +122,9 @@ export default function EditProfile() {
 
       {/* Save */}
       <TouchableOpacity style={styles.saveBtn} onPress={save}>
-        <Text style={styles.saveBtnText}>SAVE</Text>
+        <Text style={styles.saveBtnText}>SIMPAN</Text>
       </TouchableOpacity>
-    </ScrollView>
+    </KeyboardAwareScreen>
   );
 }
 
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: 55,
     borderWidth: 3,
-    borderColor: ORANGE,
+    borderColor: ACCENT,
     backgroundColor: "#E0E0E0",
   },
   editBadge: {
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: ORANGE,
+    backgroundColor: ACCENT,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
 
   saveBtn: {
     marginTop: 16,
-    backgroundColor: ORANGE,
+    backgroundColor: ACCENT,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",

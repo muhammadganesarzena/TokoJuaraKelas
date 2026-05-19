@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { clearAdminSession } from "../../lib/adminSession";
+import { formatOrderStatus } from "../../lib/delivery";
 import { supabase } from "../../lib/supabase";
 
 type Tab = "overview" | "products" | "categories" | "orders" | "users";
@@ -36,8 +37,12 @@ type Category = {
 type Order = {
   id: string;
   user_id: string;
+  ref_number?: string;
   total_price: number;
   status: string;
+  fulfillment_type?: string;
+  customer_name?: string;
+  shipping_fee?: number;
   created_at: string;
 };
 
@@ -173,7 +178,7 @@ export default function Dashboard() {
 
   const saveProduct = async () => {
     if (!pName.trim() || !pPrice.trim() || !pStock.trim()) {
-      Alert.alert("Error", "Nama, harga, dan stok wajib diisi.");
+      Alert.alert("Kesalahan", "Nama, harga, dan stok wajib diisi.");
       return;
     }
     const payload = {
@@ -192,13 +197,13 @@ export default function Dashboard() {
         .update(payload)
         .eq("id", editProduct.id);
       if (error) {
-        Alert.alert("Error", error.message);
+        Alert.alert("Kesalahan", error.message);
         return;
       }
     } else {
       const { error } = await supabase.from("products").insert(payload);
       if (error) {
-        Alert.alert("Error", error.message);
+        Alert.alert("Kesalahan", error.message);
         return;
       }
     }
@@ -236,7 +241,7 @@ export default function Dashboard() {
 
   const saveCategory = async () => {
     if (!cName.trim()) {
-      Alert.alert("Error", "Nama kategori wajib diisi.");
+      Alert.alert("Kesalahan", "Nama kategori wajib diisi.");
       return;
     }
     if (editCategory) {
@@ -245,7 +250,7 @@ export default function Dashboard() {
         .update({ name: cName.trim() })
         .eq("id", editCategory.id);
       if (error) {
-        Alert.alert("Error", error.message);
+        Alert.alert("Kesalahan", error.message);
         return;
       }
     } else {
@@ -253,7 +258,7 @@ export default function Dashboard() {
         .from("categories")
         .insert({ name: cName.trim() });
       if (error) {
-        Alert.alert("Error", error.message);
+        Alert.alert("Kesalahan", error.message);
         return;
       }
     }
@@ -289,7 +294,7 @@ export default function Dashboard() {
       .update({ status: orderStatus })
       .eq("id", selectedOrder.id);
     if (error) {
-      Alert.alert("Error", error.message);
+      Alert.alert("Kesalahan", error.message);
       return;
     }
     setOrderModal(false);
@@ -316,10 +321,10 @@ export default function Dashboard() {
   };
 
   const handleLogout = () => {
-    Alert.alert("Logout", "Yakin ingin keluar?", [
+    Alert.alert("Keluar", "Yakin ingin keluar?", [
       { text: "Batal", style: "cancel" },
       {
-        text: "Logout",
+        text: "Keluar",
         style: "destructive",
         onPress: async () => {
           await clearAdminSession();
@@ -341,7 +346,7 @@ export default function Dashboard() {
         </View>
         <View style={[styles.statCard, { backgroundColor: "#FFF3E0" }]}>
           <Text style={styles.statNum}>{stats.totalOrders}</Text>
-          <Text style={styles.statLabel}>Order</Text>
+          <Text style={styles.statLabel}>Pesanan</Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: "#E8F5E9" }]}>
           <Text style={styles.statNum}>{stats.totalUsers}</Text>
@@ -353,7 +358,7 @@ export default function Dashboard() {
               ? `${(stats.totalRevenue / 1000000).toFixed(1)}Jt`
               : "0"}
           </Text>
-          <Text style={styles.statLabel}>Revenue</Text>
+          <Text style={styles.statLabel}>Pendapatan</Text>
         </View>
       </View>
 
@@ -361,9 +366,22 @@ export default function Dashboard() {
         Order Terbaru
       </Text>
       {orders.slice(0, 5).map((o) => (
-        <View key={o.id} style={styles.recentCard}>
-          <View>
-            <Text style={styles.recentId}>#{o.id.slice(0, 8)}</Text>
+        <TouchableOpacity
+          key={o.id}
+          style={styles.recentCard}
+          onPress={() => {
+            setActiveTab("orders");
+            openOrderDetail(o);
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.recentId}>
+              {o.ref_number || `#${o.id.slice(0, 8)}`}
+            </Text>
+            <Text style={styles.recentMeta}>
+              {o.fulfillment_type === "delivery" ? "Antar" : "Ambil di Toko"}
+              {o.customer_name ? ` · ${o.customer_name}` : ""}
+            </Text>
             <Text style={styles.recentDate}>
               {new Date(o.created_at).toLocaleDateString("id-ID")}
             </Text>
@@ -378,10 +396,12 @@ export default function Dashboard() {
                 { backgroundColor: statusColor(o.status) },
               ]}
             >
-              <Text style={styles.statusText}>{o.status}</Text>
+              <Text style={styles.statusText}>
+                {formatOrderStatus(o.status, o.fulfillment_type)}
+              </Text>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
       ))}
       {orders.length === 0 && (
         <Text style={styles.emptyText}>Belum ada order.</Text>
@@ -541,7 +561,7 @@ export default function Dashboard() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Admin Panel</Text>
         <TouchableOpacity onPress={handleLogout}>
-          <Text style={styles.logoutText}>Logout</Text>
+          <Text style={styles.logoutText}>Keluar</Text>
         </TouchableOpacity>
       </View>
 
@@ -567,14 +587,14 @@ export default function Dashboard() {
               ]}
             >
               {tab === "overview"
-                ? "Overview"
+                ? "Ringkasan"
                 : tab === "products"
                   ? "Produk"
                   : tab === "categories"
                     ? "Kategori"
                     : tab === "orders"
-                      ? "Order"
-                      : "User"}
+                      ? "Pesanan"
+                      : "Pengguna"}
             </Text>
           </TouchableOpacity>
         ))}
@@ -584,7 +604,7 @@ export default function Dashboard() {
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#C85C2D"
+          color="#2D6A4F"
           style={{ marginTop: 40 }}
         />
       ) : (
@@ -602,7 +622,7 @@ export default function Dashboard() {
         <View style={styles.modalBg}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>
-              {editProduct ? "Edit Produk" : "Tambah Produk"}
+              {editProduct ? "Ubah Produk" : "Tambah Produk"}
             </Text>
             <ScrollView showsVerticalScrollIndicator={false}>
               {[
@@ -710,7 +730,7 @@ export default function Dashboard() {
         <View style={styles.modalBg}>
           <View style={[styles.modalBox, { maxHeight: "40%" }]}>
             <Text style={styles.modalTitle}>
-              {editCategory ? "Edit Kategori" : "Tambah Kategori"}
+              {editCategory ? "Ubah Kategori" : "Tambah Kategori"}
             </Text>
             <Text style={styles.inputLabel}>Nama Kategori *</Text>
             <TextInput
@@ -805,7 +825,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "#e0e0e0",
   },
-  tabActive: { backgroundColor: "#C85C2D" },
+  tabActive: { backgroundColor: "#2D6A4F" },
   tabText: { fontSize: 13, color: "#666", fontWeight: "600" },
   tabTextActive: { color: "#fff" },
   tabContent: { flex: 1, paddingHorizontal: 16 },
@@ -834,16 +854,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   recentId: { fontSize: 13, fontWeight: "700", color: "#1a1a2e" },
+  recentMeta: { fontSize: 11, color: "#555", marginTop: 2, fontWeight: "600" },
   recentDate: { fontSize: 11, color: "#888", marginTop: 2 },
   recentPrice: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#C85C2D",
+    color: "#2D6A4F",
     marginRight: 8,
   },
   row: { flexDirection: "row", alignItems: "center" },
   addBtn: {
-    backgroundColor: "#C85C2D",
+    backgroundColor: "#2D6A4F",
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: "center",
@@ -864,7 +885,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   listTitle: { fontSize: 14, fontWeight: "700", color: "#1a1a2e" },
-  listSub: { fontSize: 12, color: "#C85C2D", marginTop: 2 },
+  listSub: { fontSize: 12, color: "#2D6A4F", marginTop: 2 },
   listMeta: { fontSize: 11, color: "#888", marginTop: 2 },
   actionRow: { flexDirection: "row", gap: 6 },
   editBtn: {
@@ -931,11 +952,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e0e0e0",
   },
-  categoryChipActive: { backgroundColor: "#C85C2D", borderColor: "#C85C2D" },
+  categoryChipActive: { backgroundColor: "#2D6A4F", borderColor: "#2D6A4F" },
   categoryChipText: { fontSize: 12, color: "#555", fontWeight: "600" },
   categoryChipTextActive: { color: "#fff" },
   saveBtn: {
-    backgroundColor: "#C85C2D",
+    backgroundColor: "#2D6A4F",
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: "center",

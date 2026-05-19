@@ -26,15 +26,15 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { label: "Home", icon: "home-outline", route: "/Homepage/Homepage" },
-  { label: "Wishlist", icon: "heart-outline", route: "/Wishlist/Wishlist" },
-  { label: "History", icon: "time-outline", route: "/History/History" },
+  { label: "Beranda", icon: "home-outline", route: "/Homepage/Homepage" },
+  { label: "Favorit", icon: "heart-outline", route: "/Wishlist/Wishlist" },
+  { label: "Riwayat", icon: "time-outline", route: "/History/History" },
   {
     label: "Chat Admin",
     icon: "chatbubble-ellipses-outline",
     route: "/chat",
   },
-  { label: "Profile", icon: "person-outline", route: "/Profile/Profile" },
+  { label: "Profil", icon: "person-outline", route: "/Profile/Profile" },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
@@ -236,7 +236,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             />
           </View>
           <Text style={[styles.navLabel, { color: colors.text }]}>
-            {isDark ? "Dark Mode" : "Light Mode"}
+            {isDark ? "Mode Gelap" : "Mode Terang"}
           </Text>
           <Switch
             value={isDark}

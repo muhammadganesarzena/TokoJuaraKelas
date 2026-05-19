@@ -1,5 +1,6 @@
+import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -14,8 +15,16 @@ import {
     View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
+import {
+    AdminCatalogEmpty,
+    AdminCatalogToolbar,
+    AdminIconActionButtons,
+    AdminModalHeader,
+} from "./components/AdminCatalogUi";
 import AdminHeader from "./components/AdminHeader";
 import AdminSidebar from "./components/AdminSidebar";
+import { useAdminTheme } from "./hooks/useAdminTheme";
+import { CatalogPalette } from "./styles/catalogTheme";
 
 type Product = {
   id: string;
@@ -71,6 +80,9 @@ const makeImagePath = (name: string, fileName?: string | null) => {
 };
 
 export default function Products() {
+  const { palette: C, catalogStyles: catalogShared, colors } = useAdminTheme();
+  const styles = useMemo(() => createProductStyles(C), [C]);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -163,7 +175,7 @@ export default function Products() {
 
   const save = async () => {
     if (!pName.trim() || !pPrice.trim() || !pStock.trim()) {
-      Alert.alert("Error", "Nama, harga, dan stok wajib diisi.");
+      Alert.alert("Kesalahan", "Nama, harga, dan stok wajib diisi.");
       return;
     }
 
@@ -194,7 +206,7 @@ export default function Products() {
       setModal(false);
       fetchData();
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Gagal menyimpan produk.");
+      Alert.alert("Kesalahan", error.message || "Gagal menyimpan produk.");
     } finally {
       setSaving(false);
     }
@@ -214,73 +226,120 @@ export default function Products() {
     ]);
   };
 
+  const categoryName =
+    categories.find((c) => c.id === pCategory)?.name || null;
+
   return (
     <View style={styles.container}>
       <AdminHeader title="Produk" onMenuPress={() => setSidebarOpen(true)} />
 
-      <TouchableOpacity style={styles.addBtn} onPress={openAdd}>
-        <Text style={styles.addBtnText}>+ Tambah Produk</Text>
-      </TouchableOpacity>
+      <AdminCatalogToolbar
+        count={products.length}
+        countLabel="Total produk"
+        addLabel="Tambah Produk"
+        onAdd={openAdd}
+        icon="cube-outline"
+      />
 
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#2D6A4F"
+          color={C.primary}
           style={{ marginTop: 40 }}
         />
       ) : (
         <FlatList
           data={products}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              {item.image_url ? (
-                <Image
-                  source={{ uri: item.image_url }}
-                  style={styles.productThumb}
-                  resizeMode="cover"
-                />
-              ) : null}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{item.name}</Text>
-                <Text style={styles.cardSub}>
-                  Rp {item.price.toLocaleString("id-ID")} · Stok: {item.stock}
-                </Text>
-                {item.brand ? (
-                  <Text style={styles.cardMeta}>{item.brand}</Text>
-                ) : null}
+          contentContainerStyle={catalogShared.listContent}
+          renderItem={({ item }) => {
+            const catLabel = categories.find((c) => c.id === item.category_id)
+              ?.name;
+            return (
+              <View style={styles.card}>
+                <View style={catalogShared.cardInner}>
+                  <View style={styles.thumbWrap}>
+                    {item.image_url ? (
+                      <Image
+                        source={{ uri: item.image_url }}
+                        style={styles.productThumb}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={styles.thumbPlaceholder}>
+                        <Ionicons
+                          name="image-outline"
+                          size={22}
+                          color={C.textMuted}
+                        />
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {item.name}
+                    </Text>
+                    <Text style={styles.cardPrice}>
+                      Rp {item.price.toLocaleString("id-ID")}
+                    </Text>
+                    <View style={styles.badgeRow}>
+                      <View style={styles.stockBadge}>
+                        <Ionicons
+                          name="layers-outline"
+                          size={11}
+                          color={C.primaryDark}
+                        />
+                        <Text style={styles.stockBadgeText}>
+                          Stok {item.stock}
+                        </Text>
+                      </View>
+                      {catLabel ? (
+                        <View style={styles.catBadge}>
+                          <Text style={styles.catBadgeText} numberOfLines={1}>
+                            {catLabel}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    {item.brand ? (
+                      <Text style={styles.cardMeta} numberOfLines={1}>
+                        {item.brand}
+                      </Text>
+                    ) : null}
+                    <AdminIconActionButtons
+                      onEdit={() => openEdit(item)}
+                      onDelete={() => deleteProduct(item.id)}
+                    />
+                  </View>
+                </View>
               </View>
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  style={styles.editBtn}
-                  onPress={() => openEdit(item)}
-                >
-                  <Text style={styles.editBtnText}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteBtn}
-                  onPress={() => deleteProduct(item.id)}
-                >
-                  <Text style={styles.deleteBtnText}>Hapus</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>Belum ada produk.</Text>
+            <AdminCatalogEmpty
+              icon="cube-outline"
+              title="Belum ada produk"
+              subtitle="Tap Tambah Produk untuk menambahkan item ke katalog toko."
+            />
           }
         />
       )}
 
       {/* Modal */}
       <Modal visible={modal} animationType="slide" transparent>
-        <View style={styles.modalBg}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>
-              {editProduct ? "Edit Produk" : "Tambah Produk"}
-            </Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={catalogShared.modalBg}>
+          <View style={catalogShared.modalBox}>
+            <AdminModalHeader
+              icon="cube-outline"
+              title={editProduct ? "Ubah Produk" : "Tambah Produk"}
+              subtitle="Lengkapi detail produk untuk tampil di beranda pengguna."
+            />
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              contentContainerStyle={styles.modalScrollContent}
+            >
               {[
                 {
                   label: "Nama Produk *",
@@ -316,23 +375,23 @@ export default function Products() {
                 },
               ].map((f) => (
                 <View key={f.label}>
-                  <Text style={styles.inputLabel}>{f.label}</Text>
+                  <Text style={catalogShared.inputLabel}>{f.label}</Text>
                   <TextInput
                     style={[
-                      styles.input,
+                      catalogShared.input,
                       f.label === "Deskripsi" && { height: 80 },
                     ]}
                     value={f.value}
                     onChangeText={f.setter}
                     placeholder={f.placeholder}
-                    placeholderTextColor="#999"
+                    placeholderTextColor={colors.textPlaceholder}
                     keyboardType={(f.keyboard as any) || "default"}
                     multiline={f.label === "Deskripsi"}
                   />
                 </View>
               ))}
 
-              <Text style={styles.inputLabel}>Gambar Produk</Text>
+              <Text style={catalogShared.inputLabel}>Gambar Produk</Text>
               <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
                 {pickedImage?.uri || pImage ? (
                   <Image
@@ -342,7 +401,11 @@ export default function Products() {
                   />
                 ) : (
                   <View style={styles.imagePlaceholder}>
-                    <Text style={styles.imagePlaceholderIcon}>+</Text>
+                    <Ionicons
+                      name="cloud-upload-outline"
+                      size={32}
+                      color={C.primary}
+                    />
                     <Text style={styles.imagePlaceholderText}>
                       Pilih gambar dari galeri
                     </Text>
@@ -353,7 +416,7 @@ export default function Products() {
                 Gambar akan di-upload ke Supabase Storage otomatis.
               </Text>
 
-              <Text style={styles.inputLabel}>Kategori</Text>
+              <Text style={catalogShared.inputLabel}>Kategori</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -363,15 +426,15 @@ export default function Products() {
                   <TouchableOpacity
                     key={c.id}
                     style={[
-                      styles.chip,
-                      pCategory === c.id && styles.chipActive,
+                      catalogShared.chip,
+                      pCategory === c.id && catalogShared.chipActive,
                     ]}
                     onPress={() => setPCategory(c.id)}
                   >
                     <Text
                       style={[
-                        styles.chipText,
-                        pCategory === c.id && styles.chipTextActive,
+                        catalogShared.chipText,
+                        pCategory === c.id && catalogShared.chipTextActive,
                       ]}
                     >
                       {c.name}
@@ -380,24 +443,33 @@ export default function Products() {
                 ))}
               </ScrollView>
 
+              {categoryName ? (
+                <Text style={styles.selectedCatHint}>
+                  Kategori dipilih: {categoryName}
+                </Text>
+              ) : null}
+
               <TouchableOpacity
-                style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+                style={[
+                  catalogShared.saveBtn,
+                  saving && catalogShared.saveBtnDisabled,
+                ]}
                 onPress={save}
                 disabled={saving}
               >
                 {saving ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.saveBtnText}>
+                  <Text style={catalogShared.saveBtnText}>
                     {editProduct ? "Simpan Perubahan" : "Tambah Produk"}
                   </Text>
                 )}
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.cancelBtn}
+                style={catalogShared.cancelBtn}
                 onPress={() => setModal(false)}
               >
-                <Text style={styles.cancelBtnText}>Batal</Text>
+                <Text style={catalogShared.cancelBtnText}>Batal</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -413,90 +485,93 @@ export default function Products() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  addBtn: {
-    backgroundColor: "#2D6A4F",
-    margin: 16,
-    borderRadius: 10,
-    paddingVertical: 14,
+const createProductStyles = (C: CatalogPalette) =>
+  StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
+  card: {
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    overflow: "hidden",
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  thumbWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: C.surfaceMuted,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  productThumb: { width: "100%", height: "100%" },
+  thumbPlaceholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardContent: { flex: 1, gap: 6 },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: C.text,
+    lineHeight: 20,
+  },
+  cardPrice: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: C.primary,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
     alignItems: "center",
   },
-  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+  stockBadge: {
     flexDirection: "row",
     alignItems: "center",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-  },
-  productThumb: {
-    width: 54,
-    height: 54,
-    borderRadius: 10,
-    backgroundColor: "#f0f0f0",
-    marginRight: 12,
-  },
-  cardTitle: { fontSize: 14, fontWeight: "700", color: "#1a1a2e" },
-  cardSub: { fontSize: 12, color: "#2D6A4F", marginTop: 2 },
-  cardMeta: { fontSize: 11, color: "#888", marginTop: 2 },
-  actionRow: { flexDirection: "row", gap: 6 },
-  editBtn: {
-    backgroundColor: "#1B4332",
+    gap: 4,
+    backgroundColor: C.primarySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  editBtnText: { color: "#fff", fontSize: 11, fontWeight: "600" },
-  deleteBtn: {
-    backgroundColor: "#E53935",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  deleteBtnText: { color: "#fff", fontSize: 11, fontWeight: "600" },
-  emptyText: { textAlign: "center", color: "#999", marginTop: 40 },
-  modalBg: {
-    flex: 1,
-    backgroundColor: "#00000066",
-    justifyContent: "flex-end",
-  },
-  modalBox: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    maxHeight: "90%",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1a1a2e",
-    marginBottom: 16,
-  },
-  inputLabel: { fontSize: 13, color: "#555", marginBottom: 6, marginTop: 12 },
-  input: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: "#1a1a2e",
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: C.primarySoftBorder,
   },
+  stockBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: C.primary,
+  },
+  catBadge: {
+    maxWidth: 120,
+    backgroundColor: C.surfaceMuted,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  catBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: C.textSecondary,
+  },
+  cardMeta: { fontSize: 11, color: C.textMuted },
+  modalScrollContent: { paddingBottom: 28 },
   imagePicker: {
     height: 190,
-    borderRadius: 14,
-    backgroundColor: "#f5f5f5",
+    borderRadius: 16,
+    backgroundColor: C.surfaceMuted,
     borderWidth: 1.5,
-    borderColor: "#dcdcdc",
+    borderColor: C.primarySoftBorder,
     borderStyle: "dashed",
     overflow: "hidden",
   },
@@ -505,41 +580,18 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  imagePlaceholderIcon: {
-    fontSize: 34,
-    lineHeight: 38,
-    color: "#2D6A4F",
-    fontWeight: "900",
+    gap: 8,
   },
   imagePlaceholderText: {
     fontSize: 13,
-    color: "#555",
+    color: C.textSecondary,
     fontWeight: "700",
-    marginTop: 4,
   },
-  helperText: { fontSize: 11, color: "#888", marginTop: 6 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#f0f0f0",
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
+  helperText: { fontSize: 11, color: C.textMuted, marginTop: 6 },
+  selectedCatHint: {
+    fontSize: 12,
+    color: C.primary,
+    fontWeight: "600",
+    marginTop: 8,
   },
-  chipActive: { backgroundColor: "#2D6A4F", borderColor: "#2D6A4F" },
-  chipText: { fontSize: 12, color: "#555", fontWeight: "600" },
-  chipTextActive: { color: "#fff" },
-  saveBtn: {
-    backgroundColor: "#2D6A4F",
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 20,
-  },
-  saveBtnDisabled: { opacity: 0.7 },
-  saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  cancelBtn: { paddingVertical: 14, alignItems: "center" },
-  cancelBtnText: { color: "#888", fontSize: 14 },
-});
+  });

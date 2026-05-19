@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { supabase } from "../../lib/supabase";
 import type { Product } from "./ProductContext";
 
@@ -18,6 +24,7 @@ type CartContextType = {
   totalCount: number;
   totalPrice: number;
   loadingCart: boolean;
+  refreshCart: () => Promise<void>;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -29,37 +36,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
   const [userId, setUserId] = useState<string | null>(null);
   const [loadingCart, setLoadingCart] = useState(true);
 
-  useEffect(() => {
-    // Ambil user saat ini
-    const init = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        await fetchCart(user.id);
-      }
-      setLoadingCart(false);
-    };
-    init();
-
-    // Listen perubahan auth (login/logout)
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          setUserId(session.user.id);
-          await fetchCart(session.user.id);
-        } else {
-          setUserId(null);
-          setCartItems([]);
-        }
-      },
-    );
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  const fetchCart = async (uid: string) => {
+  const fetchCart = useCallback(async (uid: string) => {
     const { data, error } = await supabase
       .from("cart_items")
       .select(
@@ -92,7 +69,40 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       }));
       setCartItems(mapped);
     }
-  };
+  }, []);
+
+  const refreshCart = useCallback(async () => {
+    if (!userId) return;
+    await fetchCart(userId);
+  }, [userId, fetchCart]);
+
+  useEffect(() => {
+    const init = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        await fetchCart(user.id);
+      }
+      setLoadingCart(false);
+    };
+    init();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (session?.user) {
+          setUserId(session.user.id);
+          await fetchCart(session.user.id);
+        } else {
+          setUserId(null);
+          setCartItems([]);
+        }
+      },
+    );
+
+    return () => listener.subscription.unsubscribe();
+  }, [fetchCart]);
 
   const addToCart = async (product: Product) => {
     if (!userId) return;
@@ -212,6 +222,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
         totalCount,
         totalPrice,
         loadingCart,
+        refreshCart,
       }}
     >
       {children}

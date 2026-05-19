@@ -10,7 +10,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { clearAdminSession, saveAdminSession } from "../../lib/adminSession";
+import KeyboardAwareScreen from "../components/KeyboardAwareScreen";
+import {
+  clearAdminSession,
+  goToAdminDashboard,
+  saveAdminSession,
+} from "../../lib/adminSession";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../context/ThemeContext";
 import { getStyles } from "./LoginScreen.styles";
@@ -89,7 +94,7 @@ const LoginScreen: React.FC = () => {
       await clearAdminSession();
       router.replace("/Homepage/Homepage");
     } catch (error: any) {
-      Alert.alert("Google Login Error", error.message);
+      Alert.alert("Kesalahan Login Google", error.message);
     } finally {
       setLoading(false);
     }
@@ -133,7 +138,7 @@ const LoginScreen: React.FC = () => {
           email: adminData.email,
           name: adminData.name || adminData.full_name,
         });
-        router.replace("/admin/overview");
+        goToAdminDashboard();
         return;
       }
 
@@ -155,7 +160,7 @@ const LoginScreen: React.FC = () => {
       await clearAdminSession();
       router.replace("/Homepage/Homepage");
     } catch {
-      Alert.alert("Login Gagal", "Email atau Password salah.");
+        Alert.alert("Login Gagal", "Email atau kata sandi salah.");
     } finally {
       setLoading(false);
     }
@@ -166,25 +171,29 @@ const LoginScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.flex}>
+    <KeyboardAwareScreen
+      style={styles.flex}
+      contentContainerStyle={{ flexGrow: 1 }}
+      extraScrollHeight={40}
+    >
       <View style={styles.topSection}>
         <Image
           source={require("../../assets/images/SplashScreen/GuitarLogoWhite.png")}
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.welcomeText}>Welcome Back!</Text>
-        <Text style={styles.welcomeSub}>Sign in to continue</Text>
+        <Text style={styles.welcomeText}>Selamat Datang Kembali!</Text>
+        <Text style={styles.welcomeSub}>Masuk untuk melanjutkan</Text>
       </View>
 
       <View style={[styles.bottomSection, isDark && styles.bottomSectionDark]}>
-        <Text style={styles.title}>Sign In</Text>
+        <Text style={styles.title}>Masuk</Text>
 
-        <Text style={styles.label}>Email Address</Text>
+        <Text style={styles.label}>Alamat Email</Text>
         <View style={[styles.inputContainer, emailError && styles.inputError]}>
           <TextInput
             style={styles.input}
-            placeholder="yourname@email.com"
+            placeholder="namamu@email.com"
             placeholderTextColor={isDark ? "#555" : "#CCCCCC"}
             value={email}
             onChangeText={setEmail}
@@ -193,7 +202,7 @@ const LoginScreen: React.FC = () => {
           />
         </View>
 
-        <Text style={styles.label}>Password</Text>
+        <Text style={styles.label}>Kata Sandi</Text>
         <View
           style={[styles.inputContainer, passwordError && styles.inputError]}
         >
@@ -222,7 +231,7 @@ const LoginScreen: React.FC = () => {
           onPress={handleForgotPassword}
           disabled={loading}
         >
-          <Text style={styles.forgotText}>Forgot Password?</Text>
+          <Text style={styles.forgotText}>Lupa Kata Sandi?</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -233,11 +242,11 @@ const LoginScreen: React.FC = () => {
           {loading ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.signInText}>Login</Text>
+            <Text style={styles.signInText}>Masuk</Text>
           )}
         </TouchableOpacity>
 
-        <Text style={styles.otherWayText}>or sign in with</Text>
+        <Text style={styles.otherWayText}>atau masuk dengan</Text>
 
         <View style={styles.socialRow}>
           <TouchableOpacity
@@ -257,12 +266,12 @@ const LoginScreen: React.FC = () => {
           onPress={() => router.push("/LoginScreen/RegisterScreen")}
         >
           <View style={styles.registerRow}>
-            <Text style={styles.registerText}>{"Don't have an account? "}</Text>
-            <Text style={styles.registerLink}>Sign Up</Text>
+            <Text style={styles.registerText}>{"Belum punya akun? "}</Text>
+            <Text style={styles.registerLink}>Daftar</Text>
           </View>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAwareScreen>
   );
 };
 

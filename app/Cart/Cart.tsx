@@ -1,13 +1,16 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React from "react";
+import React, { useCallback } from "react";
 import {
     Image,
+    RefreshControl,
     ScrollView,
     StatusBar,
     Text,
     TouchableOpacity,
     View,
 } from "react-native";
+import { useRefreshControl } from "../hooks/useRefreshControl";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useCart } from "../context/CartContext";
 import { useTheme } from "../context/ThemeContext";
@@ -18,7 +21,14 @@ const formatRupiah = (amount: number) => "Rp " + amount.toLocaleString("id-ID");
 const Cart: React.FC = () => {
   const { colors } = useTheme();
   const styles = getStyles(colors);
-  const { cartItems, updateQuantity, totalPrice } = useCart();
+  const { cartItems, updateQuantity, totalPrice, refreshCart } = useCart();
+  const { refreshing, onRefresh } = useRefreshControl(refreshCart);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshCart();
+    }, [refreshCart]),
+  );
 
   return (
     <View style={styles.root}>
@@ -28,16 +38,16 @@ const Cart: React.FC = () => {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Cart</Text>
+        <Text style={styles.headerTitle}>Keranjang Saya</Text>
         <View style={{ width: 40 }} />
       </View>
 
       {cartItems.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="cart-outline" size={80} color={colors.textMuted} />
-          <Text style={styles.emptyTitle}>Your Cart Is Empty!</Text>
+          <Text style={styles.emptyTitle}>Keranjang Kosong!</Text>
           <Text style={styles.emptySubtitle}>
-            {"When you add products, they'll appear here."}
+            Produk yang kamu tambahkan akan muncul di sini.
           </Text>
         </View>
       ) : (
@@ -46,6 +56,14 @@ const Cart: React.FC = () => {
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={["#2D6A4F"]}
+                tintColor="#2D6A4F"
+              />
+            }
           >
             {cartItems.map(({ id, product, quantity }) => (
               <View key={id} style={styles.cartCard}>
@@ -90,7 +108,7 @@ const Cart: React.FC = () => {
               style={styles.buyNowBtn}
               onPress={() => router.push("/Payment/Payment")}
             >
-              <Text style={styles.buyNowText}>Buy Now</Text>
+              <Text style={styles.buyNowText}>Beli Sekarang</Text>
             </TouchableOpacity>
           </View>
         </>

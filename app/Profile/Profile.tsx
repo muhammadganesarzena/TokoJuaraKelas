@@ -19,7 +19,7 @@ import { useProfile } from "../context/ProfileContext";
 import { useTheme } from "../context/ThemeContext";
 
 const DEFAULT_IMAGE = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-const ORANGE = "#C85C2D";
+const ACCENT = "#2D6A4F";
 
 type OrderCounts = {
   proses: number;
@@ -30,8 +30,12 @@ type OrderCounts = {
 const countOrderStatus = (status?: string | null) => {
   const normalized = (status || "").toLowerCase();
 
-  if (["accepted", "completed", "selesai"].includes(normalized)) {
+  if (["completed", "selesai"].includes(normalized)) {
     return "selesai";
+  }
+
+  if (normalized === "accepted") {
+    return "proses";
   }
 
   if (["dikirim", "shipped", "delivering"].includes(normalized)) {
@@ -90,7 +94,7 @@ export default function Profile() {
           backgroundColor: colors.background,
         }}
       >
-        <ActivityIndicator size="large" color="#C85C2D" />
+        <ActivityIndicator size="large" color="#2D6A4F" />
       </View>
     );
   }
@@ -115,7 +119,7 @@ export default function Profile() {
           >
             <Ionicons name="arrow-back" size={20} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.text }]}>Profile</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Profil</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -184,7 +188,7 @@ export default function Profile() {
               style={styles.menuIcon}
             />
             <Text style={[styles.menuText, { color: colors.text }]}>
-              Log out
+              Keluar
             </Text>
           </View>
         </TouchableOpacity>
@@ -201,10 +205,10 @@ export default function Profile() {
             </View>
 
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Logout
+              Keluar
             </Text>
             <Text style={[styles.modalMsg, { color: colors.textSecondary }]}>
-              Are you sure you want to logout?
+              Yakin ingin keluar dari akun?
             </Text>
 
             <TouchableOpacity
@@ -216,7 +220,7 @@ export default function Profile() {
                 router.replace("/login");
               }}
             >
-              <Text style={styles.logoutBtnText}>Yes, Logout</Text>
+              <Text style={styles.logoutBtnText}>Ya, Keluar</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -226,7 +230,7 @@ export default function Profile() {
               <Text
                 style={[styles.cancelText, { color: colors.textSecondary }]}
               >
-                Cancel
+                Batal
               </Text>
             </TouchableOpacity>
           </View>
@@ -291,7 +295,7 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: 55,
     borderWidth: 3,
-    borderColor: ORANGE,
+    borderColor: ACCENT,
     backgroundColor: "#E0E0E0",
   },
   name: {

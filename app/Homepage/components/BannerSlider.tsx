@@ -1,5 +1,7 @@
+import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   FlatList,
@@ -8,36 +10,62 @@ import {
   NativeSyntheticEvent,
   Pressable,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
+import { supabase } from "../../../lib/supabase";
 
 const { width } = Dimensions.get("window");
 const BANNER_WIDTH = width - 40;
 const AUTOPLAY_INTERVAL = 3000;
 
-const BANNERS = [
-  { id: "b1", image: require("../../../assets/Banner/Banner 4.jpg") },
-  { id: "b2", image: require("../../../assets/Banner/bananer 2.jpg") },
-  { id: "b3", image: require("../../../assets/Banner/Banner 3.jpg") },
-];
+type FeedBanner = {
+  id: string;
+  image_url: string;
+  title: string | null;
+};
 
 const BannerSlider: React.FC = () => {
+  const [banners, setBanners] = useState<FeedBanner[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const autoplayRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentIndexRef = useRef(0);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  // ─── Autoplay ───────────────────────────────────────────────────
+  const fetchBanners = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("home_banners")
+      .select("id, image_url, title")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (!error && data) {
+      setBanners(data);
+      setActiveIndex(0);
+      currentIndexRef.current = 0;
+    }
+    setLoading(false);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchBanners();
+    }, [fetchBanners]),
+  );
+
   const startAutoplay = useCallback(() => {
     stopAutoplay();
+    if (banners.length <= 1) return;
     autoplayRef.current = setInterval(() => {
-      const next = (currentIndexRef.current + 1) % BANNERS.length;
+      const next = (currentIndexRef.current + 1) % banners.length;
       flatListRef.current?.scrollToIndex({ index: next, animated: true });
       currentIndexRef.current = next;
       setActiveIndex(next);
     }, AUTOPLAY_INTERVAL);
-  }, []);
+  }, [banners.length]);
 
   const stopAutoplay = useCallback(() => {
     if (autoplayRef.current) {
@@ -51,7 +79,6 @@ const BannerSlider: React.FC = () => {
     return stopAutoplay;
   }, [startAutoplay, stopAutoplay]);
 
-  // ─── Scroll sync ────────────────────────────────────────────────
   const onMomentumScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const index = Math.round(
@@ -59,12 +86,11 @@ const BannerSlider: React.FC = () => {
       );
       currentIndexRef.current = index;
       setActiveIndex(index);
-      startAutoplay(); // reset timer setelah manual swipe
+      startAutoplay();
     },
     [startAutoplay],
   );
 
-  // ─── Press animation ─────────────────────────────────────────────
   const onPressIn = useCallback(() => {
     stopAutoplay();
     Animated.spring(scaleAnim, {
@@ -73,7 +99,7 @@ const BannerSlider: React.FC = () => {
       speed: 50,
       bounciness: 4,
     }).start();
-  }, [stopAutoplay]);
+  }, [stopAutoplay, scaleAnim]);
 
   const onPressOut = useCallback(() => {
     Animated.spring(scaleAnim, {
@@ -82,17 +108,16 @@ const BannerSlider: React.FC = () => {
       speed: 50,
       bounciness: 4,
     }).start(() => startAutoplay());
-  }, [startAutoplay]);
+  }, [startAutoplay, scaleAnim]);
 
-  // ─── Render ──────────────────────────────────────────────────────
   const renderItem = useCallback(
-    ({ item }: { item: (typeof BANNERS)[0] }) => (
+    ({ item }: { item: FeedBanner }) => (
       <Pressable onPressIn={onPressIn} onPressOut={onPressOut}>
         <Animated.View
           style={[styles.bannerCard, { transform: [{ scale: scaleAnim }] }]}
         >
           <Image
-            source={item.image}
+            source={{ uri: item.image_url }}
             style={styles.bannerImage}
             resizeMode="cover"
           />
@@ -102,11 +127,27 @@ const BannerSlider: React.FC = () => {
     [onPressIn, onPressOut, scaleAnim],
   );
 
+  if (loading) {
+    return (
+      <View style={styles.loadingBox}>
+        <ActivityIndicator color="#2D6A4F" />
+      </View>
+    );
+  }
+
+  if (banners.length === 0) {
+    return (
+      <View style={styles.emptyBox}>
+        <Text style={styles.emptyText}>Belum ada banner promo.</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <FlatList
         ref={flatListRef}
-        data={BANNERS}
+        data={banners}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         horizontal
@@ -125,17 +166,19 @@ const BannerSlider: React.FC = () => {
         })}
       />
 
-      <View style={styles.dots}>
-        {BANNERS.map((_, i) => (
-          <View
-            key={i}
-            style={[
-              styles.dot,
-              i === activeIndex ? styles.dotActive : styles.dotInactive,
-            ]}
-          />
-        ))}
-      </View>
+      {banners.length > 1 && (
+        <View style={styles.dots}>
+          {banners.map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                i === activeIndex ? styles.dotActive : styles.dotInactive,
+              ]}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 };
@@ -143,6 +186,23 @@ const BannerSlider: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
+  },
+  loadingBox: {
+    height: 180,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyBox: {
+    height: 120,
+    marginHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: "#F0F4F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    fontSize: 13,
+    color: "#888",
   },
   flatListContent: {
     paddingHorizontal: 20,
@@ -172,7 +232,7 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     width: 24,
-    backgroundColor: "#E8622A",
+    backgroundColor: "#2D6A4F",
   },
   dotInactive: {
     width: 8,

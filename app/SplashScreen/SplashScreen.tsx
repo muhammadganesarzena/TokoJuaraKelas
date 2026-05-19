@@ -241,7 +241,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ theme = "light" }) => {
         <View style={[styles.underline, { backgroundColor: accentMid }]} />
 
         <Text style={[styles.tagline, { color: subColor }]}>
-          Stationery for the best of you
+          Alat tulis terbaik untukmu
         </Text>
       </Animated.View>
 

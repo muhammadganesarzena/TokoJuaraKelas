@@ -2,8 +2,6 @@ import { Dimensions, StyleSheet } from "react-native";
 import type { Colors } from "../context/ThemeContext";
 
 const { width } = Dimensions.get("window");
-const ORANGE = "#E8622A";
-
 export const getStyles = (colors: Colors) =>
   StyleSheet.create({
     // ── Root ──────────────────────────────────────────────────
@@ -32,7 +30,7 @@ export const getStyles = (colors: Colors) =>
     },
     backLink: {
       fontSize: 15,
-      color: ORANGE,
+      color: colors.accent,
       fontWeight: "600",
     },
 
@@ -107,8 +105,8 @@ export const getStyles = (colors: Colors) =>
       borderColor: "transparent",
     },
     thumbCardActive: {
-      borderColor: ORANGE,
-      backgroundColor: ORANGE + "18",
+      borderColor: colors.accent,
+      backgroundColor: colors.accentSoft,
     },
     thumbImage: {
       width: 50,
@@ -192,7 +190,7 @@ export const getStyles = (colors: Colors) =>
       height: 52,
       borderRadius: 14,
       borderWidth: 1,
-      borderColor: ORANGE,
+      borderColor: colors.accent,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
@@ -201,14 +199,14 @@ export const getStyles = (colors: Colors) =>
     addToCartText: {
       fontSize: 15,
       fontWeight: "700",
-      color: colors.text,
+      color: colors.accent,
       marginLeft: 6,
     },
 
     // State: Added
     addToCartBtnAdded: {
-      backgroundColor: "#4CAF50",
-      borderColor: "#4CAF50",
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
@@ -222,7 +220,7 @@ export const getStyles = (colors: Colors) =>
       flex: 1,
       height: 52,
       borderRadius: 14,
-      backgroundColor: ORANGE,
+      backgroundColor: colors.accent,
       alignItems: "center",
       justifyContent: "center",
     },

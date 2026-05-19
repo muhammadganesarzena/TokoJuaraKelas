@@ -37,7 +37,7 @@ type ProductContextType = {
   toggleLike: (id: string) => void;
   wishlist: Product[];
   loadingProducts: boolean;
-  refreshProducts: () => void;
+  refreshProducts: () => Promise<void>;
 };
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);

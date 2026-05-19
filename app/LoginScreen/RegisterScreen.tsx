@@ -4,14 +4,12 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import KeyboardAwareScreen from "../components/KeyboardAwareScreen";
 import { clearAdminSession } from "../../lib/adminSession";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../context/ThemeContext";
@@ -116,17 +114,17 @@ const RegisterScreen: React.FC = () => {
     const trimmedEmail = email.trim().toLowerCase();
 
     if (!fullName.trim() || !username.trim()) {
-      Alert.alert("Error", "Nama Lengkap dan Username wajib diisi.");
+      Alert.alert("Kesalahan", "Nama Lengkap dan Username wajib diisi.");
       return;
     }
 
     if (!isGoogleUser && (!trimmedEmail || !password.trim())) {
-      Alert.alert("Error", "Email dan Password wajib diisi.");
+      Alert.alert("Kesalahan", "Email dan kata sandi wajib diisi.");
       return;
     }
 
     if (!isGoogleUser && password.trim().length < 6) {
-      Alert.alert("Error", "Password minimal 6 karakter.");
+      Alert.alert("Kesalahan", "Kata sandi minimal 6 karakter.");
       return;
     }
 
@@ -187,7 +185,7 @@ const RegisterScreen: React.FC = () => {
     const trimmedOtp = otp.trim();
 
     if (!trimmedOtp) {
-      Alert.alert("Error", "Masukkan kode OTP.");
+      Alert.alert("Kesalahan", "Masukkan kode OTP.");
       return;
     }
 
@@ -226,7 +224,7 @@ const RegisterScreen: React.FC = () => {
     const trimmedEmail = email.trim().toLowerCase();
 
     if (!trimmedEmail) {
-      Alert.alert("Error", "Email tidak boleh kosong.");
+      Alert.alert("Kesalahan", "Email tidak boleh kosong.");
       return;
     }
 
@@ -253,14 +251,14 @@ const RegisterScreen: React.FC = () => {
       label: "Nama Lengkap",
       value: fullName,
       setter: setFullName,
-      placeholder: "John Doe",
+      placeholder: "Budi Santoso",
       required: true,
     },
     {
       label: "Username",
       value: username,
       setter: setUsername,
-      placeholder: "johndoe",
+      placeholder: "budisantoso",
       required: true,
       autoCapitalize: "none",
     },
@@ -268,7 +266,7 @@ const RegisterScreen: React.FC = () => {
       label: "Email",
       value: email,
       setter: setEmail,
-      placeholder: "john@email.com",
+      placeholder: "budi@email.com",
       required: true,
       autoCapitalize: "none",
       keyboard: "email-address",
@@ -277,7 +275,7 @@ const RegisterScreen: React.FC = () => {
     ...(!isGoogleUser
       ? [
           {
-            label: "Password",
+            label: "Kata Sandi",
             value: password,
             setter: setPassword,
             placeholder: "••••••••",
@@ -303,9 +301,10 @@ const RegisterScreen: React.FC = () => {
   ];
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <KeyboardAwareScreen
       style={styles.flex}
+      contentContainerStyle={{ flexGrow: 1 }}
+      extraScrollHeight={48}
     >
       <View style={[styles.topSection, { height: 140 }]}>
         <Text style={styles.welcomeText}>
@@ -324,10 +323,8 @@ const RegisterScreen: React.FC = () => {
         </Text>
       </View>
 
-      <ScrollView
+      <View
         style={[styles.bottomSection, isDark && styles.bottomSectionDark]}
-        contentContainerStyle={{ paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
       >
         <TouchableOpacity
           onPress={() => (otpStep ? setOtpStep(false) : router.back())}
@@ -434,8 +431,8 @@ const RegisterScreen: React.FC = () => {
             </TouchableOpacity>
           </>
         )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </KeyboardAwareScreen>
   );
 };
 

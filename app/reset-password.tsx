@@ -11,6 +11,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import KeyboardAwareScreen from "./components/KeyboardAwareScreen";
 import { supabase } from "../lib/supabase";
 
 const GREEN_DARK = "#1B4332";
@@ -39,12 +40,12 @@ export default function ResetPassword() {
 
   const handleUpdatePassword = async () => {
     if (password.length < 6) {
-      Alert.alert("Password terlalu pendek", "Password minimal 6 karakter.");
+      Alert.alert("Kata sandi terlalu pendek", "Kata sandi minimal 6 karakter.");
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert("Password tidak sama", "Konfirmasi password harus sama.");
+      Alert.alert("Kata sandi tidak sama", "Konfirmasi kata sandi harus sama.");
       return;
     }
 
@@ -54,11 +55,11 @@ export default function ResetPassword() {
       if (error) throw error;
 
       Alert.alert(
-        "Password diperbarui",
-        "Silakan login dengan password baru.",
+        "Kata sandi diperbarui",
+        "Silakan masuk dengan kata sandi baru.",
         [
           {
-            text: "OK",
+            text: "Oke",
             onPress: () => router.replace("/LoginScreen/LoginScreen"),
           },
         ],
@@ -79,20 +80,24 @@ export default function ResetPassword() {
       <StatusBar barStyle="light-content" backgroundColor={GREEN_DARK} />
 
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Reset Password</Text>
+        <Text style={styles.headerTitle}>Atur Ulang Kata Sandi</Text>
         <Text style={styles.headerSubtitle}>
-          Buat password baru untuk akunmu
+          Buat kata sandi baru untuk akunmu
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>New Password</Text>
+      <KeyboardAwareScreen
+        style={styles.card}
+        contentContainerStyle={styles.cardContent}
+        extraScrollHeight={32}
+      >
+        <Text style={styles.title}>Kata Sandi Baru</Text>
 
         {preparingSession ? (
           <ActivityIndicator color={GREEN_MID} />
         ) : (
           <>
-            <Text style={styles.label}>Password Baru</Text>
+            <Text style={styles.label}>Kata Sandi Baru</Text>
             <TextInput
               style={styles.input}
               value={password}
@@ -102,12 +107,12 @@ export default function ResetPassword() {
               secureTextEntry
             />
 
-            <Text style={styles.label}>Konfirmasi Password</Text>
+            <Text style={styles.label}>Konfirmasi Kata Sandi</Text>
             <TextInput
               style={styles.input}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              placeholder="Ulangi password baru"
+              placeholder="Ulangi kata sandi baru"
               placeholderTextColor="#999999"
               secureTextEntry
             />
@@ -120,7 +125,7 @@ export default function ResetPassword() {
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.buttonText}>Update Password</Text>
+                <Text style={styles.buttonText}>Perbarui Kata Sandi</Text>
               )}
             </TouchableOpacity>
 
@@ -128,11 +133,11 @@ export default function ResetPassword() {
               style={styles.backButton}
               onPress={() => router.replace("/LoginScreen/LoginScreen")}
             >
-              <Text style={styles.backText}>Kembali ke Login</Text>
+              <Text style={styles.backText}>Kembali ke Masuk</Text>
             </TouchableOpacity>
           </>
         )}
-      </View>
+      </KeyboardAwareScreen>
     </View>
   );
 }
@@ -163,8 +168,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
+  },
+  cardContent: {
+    flexGrow: 1,
     paddingHorizontal: 28,
     paddingTop: 36,
+    paddingBottom: 32,
   },
   title: {
     fontSize: 22,

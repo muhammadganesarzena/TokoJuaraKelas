@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { getAdminSession } from "../../lib/adminSession";
 import { supabase } from "../../lib/supabase";
 import UserBottomNav from "../components/UserBottomNav";
 import { useTheme } from "../context/ThemeContext";
@@ -77,6 +78,13 @@ export default function Chat() {
   }, [messages.length]);
 
   const loadSession = async () => {
+    const adminSession = await getAdminSession();
+    if (adminSession) {
+      setLoading(false);
+      router.replace("/admin/support");
+      return;
+    }
+
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -101,7 +109,7 @@ export default function Chat() {
       .order("created_at", { ascending: true });
 
     if (error) {
-      Alert.alert("Chat Error", error.message);
+      Alert.alert("Kesalahan Chat", error.message);
     } else {
       setMessages((data || []) as ChatMessage[]);
     }
@@ -168,7 +176,8 @@ export default function Chat() {
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
     >
       <View style={[styles.header, { backgroundColor: colors.surface }]}>
         <TouchableOpacity

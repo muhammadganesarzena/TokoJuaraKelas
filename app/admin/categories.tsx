@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -11,8 +12,16 @@ import {
     View,
 } from "react-native";
 import { supabase } from "../../lib/supabase";
+import {
+    AdminCatalogEmpty,
+    AdminCatalogToolbar,
+    AdminIconActionButtons,
+    AdminModalHeader,
+} from "./components/AdminCatalogUi";
 import AdminHeader from "./components/AdminHeader";
 import AdminSidebar from "./components/AdminSidebar";
+import { useAdminTheme } from "./hooks/useAdminTheme";
+import { CatalogPalette } from "./styles/catalogTheme";
 
 type Category = {
   id: string;
@@ -24,6 +33,9 @@ type Category = {
 };
 
 export default function Categories() {
+  const { palette: C, catalogStyles: catalogShared, colors } = useAdminTheme();
+  const styles = useMemo(() => createCategoryStyles(C), [C]);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +82,7 @@ export default function Categories() {
 
   const save = async () => {
     if (!cName.trim()) {
-      Alert.alert("Error", "Nama kategori wajib diisi.");
+      Alert.alert("Kesalahan", "Nama kategori wajib diisi.");
       return;
     }
     if (editCategory) {
@@ -79,7 +91,7 @@ export default function Categories() {
         .update({ name: cName.trim() })
         .eq("id", editCategory.id);
       if (error) {
-        Alert.alert("Error", error.message);
+        Alert.alert("Kesalahan", error.message);
         return;
       }
     } else {
@@ -87,7 +99,7 @@ export default function Categories() {
         .from("categories")
         .insert({ name: cName.trim() });
       if (error) {
-        Alert.alert("Error", error.message);
+        Alert.alert("Kesalahan", error.message);
         return;
       }
     }
@@ -113,96 +125,113 @@ export default function Categories() {
     <View style={styles.container}>
       <AdminHeader title="Kategori" onMenuPress={() => setSidebarOpen(true)} />
 
-      <TouchableOpacity style={styles.addBtn} onPress={openAdd}>
-        <Text style={styles.addBtnText}>+ Tambah Kategori</Text>
-      </TouchableOpacity>
+      <AdminCatalogToolbar
+        count={categories.length}
+        countLabel="Total kategori"
+        addLabel="Tambah Kategori"
+        onAdd={openAdd}
+        icon="pricetag-outline"
+      />
 
       {loading ? (
         <ActivityIndicator
           size="large"
-          color="#2D6A4F"
+          color={C.primary}
           style={{ marginTop: 40 }}
         />
       ) : (
         <FlatList
           data={categories}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{item.name}</Text>
-
-                <Text style={styles.productCount}>
-                  {item.products?.length || 0} produk
-                </Text>
-
-                {item.products && item.products.length > 0 ? (
-                  <View style={{ marginTop: 6 }}>
-                    {item.products.slice(0, 3).map((product) => (
-                      <Text key={product.id} style={styles.productName}>
-                        • {product.name}
-                      </Text>
-                    ))}
-
-                    {item.products.length > 3 && (
-                      <Text style={styles.moreText}>
-                        +{item.products.length - 3} produk lainnya
-                      </Text>
-                    )}
+          contentContainerStyle={catalogShared.listContent}
+          renderItem={({ item }) => {
+            const count = item.products?.length || 0;
+            const initial = (item.name || "?").charAt(0).toUpperCase();
+            return (
+              <View style={styles.card}>
+                <View style={catalogShared.cardInner}>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>{initial}</Text>
                   </View>
-                ) : (
-                  <Text style={styles.emptyCategory}>Belum ada produk</Text>
-                )}
-              </View>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle}>{item.name}</Text>
+                    <View style={styles.countPill}>
+                      <Ionicons
+                        name="cube-outline"
+                        size={12}
+                        color={C.primaryDark}
+                      />
+                      <Text style={styles.productCount}>
+                        {count} produk
+                      </Text>
+                    </View>
 
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  style={styles.editBtn}
-                  onPress={() => openEdit(item)}
-                >
-                  <Text style={styles.editBtnText}>Edit</Text>
-                </TouchableOpacity>
+                    {count > 0 ? (
+                      <View style={styles.chipWrap}>
+                        {item.products!.slice(0, 3).map((product) => (
+                          <View key={product.id} style={styles.productChip}>
+                            <Text style={styles.productChipText} numberOfLines={1}>
+                              {product.name}
+                            </Text>
+                          </View>
+                        ))}
+                        {count > 3 ? (
+                          <View style={styles.moreChip}>
+                            <Text style={styles.moreChipText}>
+                              +{count - 3}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    ) : (
+                      <Text style={styles.emptyCategory}>Belum ada produk</Text>
+                    )}
 
-                <TouchableOpacity
-                  style={styles.deleteBtn}
-                  onPress={() => deleteCategory(item.id)}
-                >
-                  <Text style={styles.deleteBtnText}>Hapus</Text>
-                </TouchableOpacity>
+                    <AdminIconActionButtons
+                      onEdit={() => openEdit(item)}
+                      onDelete={() => deleteCategory(item.id)}
+                    />
+                  </View>
+                </View>
               </View>
-            </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>Belum ada kategori.</Text>
+            <AdminCatalogEmpty
+              icon="pricetag-outline"
+              title="Belum ada kategori"
+              subtitle="Buat kategori untuk mengelompokkan produk di beranda."
+            />
           }
         />
       )}
 
       <Modal visible={modal} animationType="slide" transparent>
-        <View style={styles.modalBg}>
-          <View style={[styles.modalBox, { maxHeight: "40%" }]}>
-            <Text style={styles.modalTitle}>
-              {editCategory ? "Edit Kategori" : "Tambah Kategori"}
-            </Text>
-            <Text style={styles.inputLabel}>Nama Kategori *</Text>
+        <View style={catalogShared.modalBg}>
+          <View style={[catalogShared.modalBox, { maxHeight: "44%" }]}>
+            <AdminModalHeader
+              icon="pricetag-outline"
+              title={editCategory ? "Ubah Kategori" : "Tambah Kategori"}
+              subtitle="Nama kategori akan tampil di filter beranda pengguna."
+            />
+            <Text style={catalogShared.inputLabel}>Nama Kategori *</Text>
             <TextInput
-              style={styles.input}
+              style={catalogShared.input}
               value={cName}
               onChangeText={setCName}
-              placeholder="Nama kategori"
-              placeholderTextColor="#999"
+              placeholder="Contoh: Alat Tulis"
+              placeholderTextColor={C.textMuted}
             />
-            <TouchableOpacity style={styles.saveBtn} onPress={save}>
-              <Text style={styles.saveBtnText}>
+            <TouchableOpacity style={catalogShared.saveBtn} onPress={save}>
+              <Text style={catalogShared.saveBtnText}>
                 {editCategory ? "Simpan" : "Tambah"}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.cancelBtn}
+              style={catalogShared.cancelBtn}
               onPress={() => setModal(false)}
             >
-              <Text style={styles.cancelBtnText}>Batal</Text>
+              <Text style={catalogShared.cancelBtnText}>Batal</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -217,105 +246,95 @@ export default function Categories() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  addBtn: {
-    backgroundColor: "#2D6A4F",
-    margin: 16,
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+const createCategoryStyles = (C: CatalogPalette) =>
+  StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    overflow: "hidden",
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: C.primarySoft,
+    borderWidth: 1,
+    borderColor: C.primarySoftBorder,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: C.primary,
+  },
+  cardContent: { flex: 1, gap: 8 },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: C.text,
+  },
+  countPill: {
     flexDirection: "row",
     alignItems: "center",
-    elevation: 2,
-  },
-  cardTitle: { fontSize: 14, fontWeight: "700", color: "#1a1a2e" },
-  actionRow: { flexDirection: "row", gap: 6 },
-  editBtn: {
-    backgroundColor: "#1B4332",
-    borderRadius: 8,
+    alignSelf: "flex-start",
+    gap: 5,
+    backgroundColor: C.primarySoft,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  editBtnText: { color: "#fff", fontSize: 11, fontWeight: "600" },
-  deleteBtn: {
-    backgroundColor: "#E53935",
+    paddingVertical: 5,
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  deleteBtnText: { color: "#fff", fontSize: 11, fontWeight: "600" },
-  emptyText: { textAlign: "center", color: "#999", marginTop: 40 },
-  modalBg: {
-    flex: 1,
-    backgroundColor: "#00000066",
-    justifyContent: "flex-end",
-  },
-  modalBox: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1a1a2e",
-    marginBottom: 16,
-  },
-  inputLabel: { fontSize: 13, color: "#555", marginBottom: 6, marginTop: 12 },
-  input: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: "#1a1a2e",
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: C.primarySoftBorder,
   },
-  saveBtn: {
-    backgroundColor: "#2D6A4F",
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 20,
-  },
-  saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  cancelBtn: { paddingVertical: 14, alignItems: "center" },
-  cancelBtnText: { color: "#888", fontSize: 14 },
-
   productCount: {
     fontSize: 12,
-    color: "#2D6A4F",
+    color: C.primary,
     fontWeight: "700",
-    marginTop: 4,
   },
-
-  productName: {
-    fontSize: 12,
-    color: "#444",
-    marginTop: 2,
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
   },
-
-  moreText: {
+  productChip: {
+    maxWidth: 140,
+    backgroundColor: C.surfaceMuted,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  productChipText: {
     fontSize: 11,
-    color: "#888",
-    marginTop: 4,
-    fontStyle: "italic",
+    color: C.textSecondary,
+    fontWeight: "600",
   },
-
+  moreChip: {
+    backgroundColor: C.primarySoft,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: C.primarySoftBorder,
+  },
+  moreChipText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: C.primary,
+  },
   emptyCategory: {
     fontSize: 12,
-    color: "#999",
-    marginTop: 6,
+    color: C.textMuted,
     fontStyle: "italic",
   },
-});
+  });

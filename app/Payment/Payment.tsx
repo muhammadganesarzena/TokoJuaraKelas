@@ -1,34 +1,41 @@
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
-  ScrollView,
   StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import KeyboardAwareScreen from "../components/KeyboardAwareScreen";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import {
+  getShippingFee,
+  isDeliveryTooFar,
+  STORE_LOCATION,
+} from "../../lib/delivery";
 import { supabase } from "../../lib/supabase";
 import { useCart } from "../context/CartContext";
 import { useTheme } from "../context/ThemeContext";
+import DeliveryMapPicker from "./components/DeliveryMapPicker";
 import { getStyles } from "./Payment.styles";
 
 const formatRupiah = (amount: number) => "Rp " + amount.toLocaleString("id-ID");
 const QRIS_IMAGE = require("../../assets/qris.jpeg");
-
 type FulfillmentType = "pickup" | "delivery";
 
 type FieldErrors = {
   name?: string;
   phone?: string;
   email?: string;
+  address?: string;
   proof?: string;
   fulfillment?: string;
+  location?: string;
 };
 
 type ProofAsset = {
@@ -37,8 +44,6 @@ type ProofAsset = {
   mimeType?: string | null;
   fileName?: string | null;
 };
-
-const adminFee = 5000;
 
 const base64ToArrayBuffer = (base64: string) => {
   const chars =
@@ -66,16 +71,23 @@ const base64ToArrayBuffer = (base64: string) => {
 const Payment: React.FC = () => {
   const { colors } = useTheme();
   const styles = getStyles(colors);
-  const { cartItems, totalPrice } = useCart();
+  const { cartItems, totalPrice, clearCart } = useCart();
 
   const [fulfillment, setFulfillment] = useState<FulfillmentType | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [houseNote, setHouseNote] = useState("");
   const [orderNote, setOrderNote] = useState("");
   const [proof, setProof] = useState<ProofAsset | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [customerLocation, setCustomerLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [refNumber] = useState(
     () => `ORD-${String(Math.floor(Math.random() * 999999)).padStart(6, "0")}`,
   );
@@ -83,31 +95,71 @@ const Payment: React.FC = () => {
     () => `PU-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`,
   );
 
-  const totalAmount = totalPrice + adminFee;
+  useEffect(() => {
+    const loadProfile = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      setEmail(user.email || "");
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, phone, address, email")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!data) return;
+      setName(data.full_name || "");
+      setPhone(data.phone || "");
+      setAddress(data.address || "");
+      setEmail(data.email || user.email || "");
+    };
+
+    loadProfile();
+  }, []);
+
+  const isDelivery = fulfillment === "delivery";
+  const shippingFee = useMemo(
+    () => (isDelivery ? getShippingFee(distanceKm) : 0),
+    [distanceKm, isDelivery],
+  );
+  const totalAmount = totalPrice + shippingFee;
+  const deliveryTooFar = isDelivery && isDeliveryTooFar(distanceKm);
 
   const validate = () => {
     const next: FieldErrors = {};
-    if (!fulfillment) next.fulfillment = "Pilih metode pengambilan dulu.";
+    if (!fulfillment) next.fulfillment = "Pilih pick up atau antar dulu.";
     if (!name.trim()) next.name = "Nama wajib diisi.";
     if (!phone.trim()) next.phone = "Nomor HP wajib diisi.";
     if (!email.trim()) next.email = "Email wajib diisi.";
     else if (!/\S+@\S+\.\S+/.test(email.trim()))
       next.email = "Format email tidak valid.";
+    if (fulfillment === "delivery") {
+      if (!address.trim()) next.address = "Alamat lengkap wajib diisi.";
+      if (!customerLocation)
+        next.location = "Cari alamat atau tap peta untuk pilih titik rumah.";
+      else if (deliveryTooFar)
+        next.location = "Jarak antar maksimal 20 km dari toko.";
+    }
     if (!proof) next.proof = "Upload bukti pembayaran QRIS.";
     setErrors(next);
     return Object.keys(next).length === 0;
   };
 
   const selectFulfillment = (value: FulfillmentType) => {
-    if (value === "delivery") {
-      Alert.alert(
-        "Antar belum tersedia",
-        "Untuk sekarang checkout difokuskan ke pick up di toko dulu.",
-      );
-      return;
-    }
     setFulfillment(value);
     setErrors((prev) => ({ ...prev, fulfillment: undefined }));
+  };
+
+  const handleDeliveryLocationChange = (
+    coordinate: { latitude: number; longitude: number },
+    km: number,
+  ) => {
+    setCustomerLocation(coordinate);
+    setDistanceKm(km);
+    setErrors((prev) => ({ ...prev, location: undefined }));
   };
 
   const pickProof = async () => {
@@ -166,20 +218,28 @@ const Payment: React.FC = () => {
       const orderPayload = {
         user_id: user.id,
         ref_number: refNumber,
-        pickup_code: pickupCode,
-        fulfillment_type: "pickup",
+        pickup_code: isDelivery ? null : pickupCode,
+        fulfillment_type: fulfillment,
         payment_method: "qris",
         payment_status: "waiting_verification",
         payment_proof_url: proofUrl,
         customer_name: name.trim(),
         email: email.trim(),
         phone: phone.trim(),
+        address: isDelivery ? address.trim() : null,
+        house_note: isDelivery ? houseNote.trim() || null : null,
         order_note: orderNote.trim() || null,
         items: products,
         subtotal: totalPrice,
-        admin_fee: adminFee,
+        admin_fee: 0,
+        shipping_fee: shippingFee,
         total_price: totalAmount,
         status: "pending",
+        store_lat: isDelivery ? STORE_LOCATION.latitude : null,
+        store_lng: isDelivery ? STORE_LOCATION.longitude : null,
+        delivery_lat: isDelivery ? customerLocation?.latitude : null,
+        delivery_lng: isDelivery ? customerLocation?.longitude : null,
+        delivery_distance_km: isDelivery ? distanceKm : null,
       };
 
       const { data, error } = await supabase
@@ -190,19 +250,25 @@ const Payment: React.FC = () => {
 
       if (error) throw error;
 
+      await clearCart();
+
       router.replace({
         pathname: "/Payment/OrderConfirmation",
         params: {
-          orderId: data.id,
+          orderId: String(data.id),
           refNumber,
           pickupCode,
           paymentTime: new Date().toLocaleString("id-ID"),
-          totalPrice: String(totalPrice),
-          adminFee: String(adminFee),
+          subtotal: String(totalPrice),
+          shippingFee: String(shippingFee),
+          totalPrice: String(totalAmount),
           name: name.trim(),
           email: email.trim(),
           phone: phone.trim(),
-          fulfillmentType: "pickup",
+          fulfillmentType: fulfillment || "pickup",
+          address: isDelivery ? address.trim() : "Pick up di toko",
+          houseNote: isDelivery ? houseNote.trim() : "",
+          distanceKm: isDelivery && distanceKm !== null ? String(distanceKm) : "",
         },
       });
     } catch (err: any) {
@@ -211,6 +277,172 @@ const Payment: React.FC = () => {
       setSubmitting(false);
     }
   };
+
+  const renderCustomerFields = () => (
+    <>
+      <View style={styles.sectionRow}>
+        <View style={styles.sectionNumber}>
+          <Text style={styles.sectionNumberText}>1</Text>
+        </View>
+        <Text style={styles.sectionTitle}>
+          {fulfillment === "delivery" ? "Data Penerima" : "Data Pemesan"}
+        </Text>
+      </View>
+
+      <Text style={styles.inputLabel}>
+        {fulfillment === "delivery" ? "Nama penerima*" : "Nama*"}
+      </Text>
+      <TextInput
+        style={[styles.input, errors.name && styles.inputError]}
+        placeholder="Nama lengkap"
+        placeholderTextColor={colors.textPlaceholder}
+        value={name}
+        onChangeText={setName}
+      />
+      {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+
+      <Text style={styles.inputLabel}>Nomor HP*</Text>
+      <TextInput
+        style={[styles.input, errors.phone && styles.inputError]}
+        placeholder="+62 812 3456 7890"
+        placeholderTextColor={colors.textPlaceholder}
+        keyboardType="phone-pad"
+        value={phone}
+        onChangeText={setPhone}
+      />
+      {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+
+      {fulfillment !== "delivery" && (
+        <>
+          <Text style={styles.inputLabel}>Email*</Text>
+          <TextInput
+            style={[styles.input, errors.email && styles.inputError]}
+            placeholder="email@contoh.com"
+            placeholderTextColor={colors.textPlaceholder}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
+          />
+          {errors.email && (
+            <Text style={styles.errorText}>{errors.email}</Text>
+          )}
+        </>
+      )}
+
+      {fulfillment === "delivery" && (
+        <>
+          <Text style={styles.inputLabel}>Alamat lengkap*</Text>
+          <TextInput
+            style={[
+              styles.input,
+              styles.noteInput,
+              errors.address && styles.inputError,
+            ]}
+            placeholder="Jalan, nomor rumah, RT/RW, kelurahan..."
+            placeholderTextColor={colors.textPlaceholder}
+            value={address}
+            onChangeText={setAddress}
+            multiline
+            textAlignVertical="top"
+          />
+          {errors.address && (
+            <Text style={styles.errorText}>{errors.address}</Text>
+          )}
+
+          <Text style={styles.inputLabel}>Catatan rumah</Text>
+          <TextInput
+            style={[styles.input, styles.noteInput]}
+            placeholder="Contoh: pagar hijau, dekat pos satpam"
+            placeholderTextColor={colors.textPlaceholder}
+            value={houseNote}
+            onChangeText={setHouseNote}
+            multiline
+            textAlignVertical="top"
+          />
+
+          <Text style={styles.inputLabel}>Titik rumah di map*</Text>
+          <DeliveryMapPicker
+            storeLocation={STORE_LOCATION}
+            customerLocation={customerLocation}
+            onLocationChange={handleDeliveryLocationChange}
+            onAddressResolved={(resolved) => {
+              setAddress(resolved);
+              setErrors((prev) => ({ ...prev, address: undefined }));
+            }}
+          />
+          <Text style={styles.mapHint}>
+            Cari alamat di kolom peta atau tap titik rumah; ongkir dihitung
+            otomatis dari toko.
+          </Text>
+          {distanceKm !== null && (
+            <View
+              style={[
+                styles.distanceCard,
+                deliveryTooFar && styles.distanceCardDanger,
+              ]}
+            >
+              <Ionicons
+                name={deliveryTooFar ? "alert-circle-outline" : "navigate"}
+                size={18}
+                color={deliveryTooFar ? "#E53935" : "#2D6A4F"}
+              />
+              <Text
+                style={[
+                  styles.distanceText,
+                  deliveryTooFar && styles.distanceTextDanger,
+                ]}
+              >
+                Jarak toko ke rumah: {distanceKm} km
+              </Text>
+            </View>
+          )}
+          {errors.location && (
+            <Text style={styles.errorText}>{errors.location}</Text>
+          )}
+        </>
+      )}
+
+      <Text style={styles.inputLabel}>Catatan Order</Text>
+      <TextInput
+        style={[styles.input, styles.noteInput]}
+        placeholder='Contoh: "Saya mau yang warna merah"'
+        placeholderTextColor={colors.textPlaceholder}
+        value={orderNote}
+        onChangeText={setOrderNote}
+        multiline
+        textAlignVertical="top"
+      />
+    </>
+  );
+
+  const renderPayment = () => (
+    <>
+      <View style={styles.sectionRow}>
+        <View style={styles.sectionNumber}>
+          <Text style={styles.sectionNumberText}>2</Text>
+        </View>
+        <Text style={styles.sectionTitle}>Bayar QRIS</Text>
+      </View>
+
+      <View style={styles.qrisCard}>
+        <Text style={styles.qrisTitle}>QRIS</Text>
+        <View style={styles.qrisBox}>
+          <Image source={QRIS_IMAGE} style={styles.qrisImage} resizeMode="contain" />
+        </View>
+        <Text style={styles.qrisAmount}>{formatRupiah(totalAmount)}</Text>
+      </View>
+
+      <TouchableOpacity style={styles.uploadBtn} onPress={pickProof}>
+        <Ionicons name="cloud-upload-outline" size={20} color="#FFFFFF" />
+        <Text style={styles.uploadBtnText}>
+          {proof ? "Ganti Bukti Pembayaran" : "Upload Bukti Pembayaran"}
+        </Text>
+      </TouchableOpacity>
+      {proof && <Image source={{ uri: proof.uri }} style={styles.proofPreview} />}
+      {errors.proof && <Text style={styles.errorText}>{errors.proof}</Text>}
+    </>
+  );
 
   return (
     <View style={styles.root}>
@@ -223,14 +455,15 @@ const Payment: React.FC = () => {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Checkout</Text>
+        <Text style={styles.headerTitle}>Pembayaran</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
+      <KeyboardAwareScreen
         style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        extraScrollHeight={80}
+        headerOffset={56}
       >
         <Text style={styles.sectionLabel}>Metode Pesanan</Text>
         <View style={styles.optionRow}>
@@ -241,120 +474,35 @@ const Payment: React.FC = () => {
             ]}
             onPress={() => selectFulfillment("pickup")}
           >
-            <Ionicons name="storefront-outline" size={24} color="#E8622A" />
-            <Text style={styles.optionTitle}>Pick Up</Text>
+            <Ionicons name="storefront-outline" size={24} color="#2D6A4F" />
+            <Text style={styles.optionTitle}>Ambil di Toko</Text>
             <Text style={styles.optionSub}>Ambil langsung di toko</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.optionCard}
+            style={[
+              styles.optionCard,
+              fulfillment === "delivery" && styles.optionCardSelected,
+            ]}
             onPress={() => selectFulfillment("delivery")}
           >
-            <Ionicons
-              name="bicycle-outline"
-              size={24}
-              color={colors.textMuted}
-            />
+            <Ionicons name="bicycle-outline" size={24} color="#2D6A4F" />
             <Text style={styles.optionTitle}>Antar</Text>
-            <Text style={styles.optionSub}>Segera hadir</Text>
+            <Text style={styles.optionSub}>Diantar karyawan toko</Text>
           </TouchableOpacity>
         </View>
         {errors.fulfillment && (
           <Text style={styles.errorText}>{errors.fulfillment}</Text>
         )}
 
-        {fulfillment === "pickup" && (
+        {fulfillment && (
           <>
-            <View style={styles.sectionRow}>
-              <View style={styles.sectionNumber}>
-                <Text style={styles.sectionNumberText}>1</Text>
-              </View>
-              <Text style={styles.sectionTitle}>Data Pemesan</Text>
-            </View>
-
-            <Text style={styles.inputLabel}>Nama*</Text>
-            <TextInput
-              style={[styles.input, errors.name && styles.inputError]}
-              placeholder="Nama lengkap"
-              placeholderTextColor={colors.textPlaceholder}
-              value={name}
-              onChangeText={setName}
-            />
-            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-
-            <Text style={styles.inputLabel}>Nomor HP*</Text>
-            <TextInput
-              style={[styles.input, errors.phone && styles.inputError]}
-              placeholder="+62 812 3456 7890"
-              placeholderTextColor={colors.textPlaceholder}
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={setPhone}
-            />
-            {errors.phone && (
-              <Text style={styles.errorText}>{errors.phone}</Text>
-            )}
-
-            <Text style={styles.inputLabel}>Email*</Text>
-            <TextInput
-              style={[styles.input, errors.email && styles.inputError]}
-              placeholder="email@example.com"
-              placeholderTextColor={colors.textPlaceholder}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
-            />
-            {errors.email && (
-              <Text style={styles.errorText}>{errors.email}</Text>
-            )}
-
-            <Text style={styles.inputLabel}>Catatan Order</Text>
-            <TextInput
-              style={[styles.input, styles.noteInput]}
-              placeholder='Contoh: "Saya mau yang warna merah"'
-              placeholderTextColor={colors.textPlaceholder}
-              value={orderNote}
-              onChangeText={setOrderNote}
-              multiline
-              textAlignVertical="top"
-            />
-
-            <View style={styles.sectionRow}>
-              <View style={styles.sectionNumber}>
-                <Text style={styles.sectionNumberText}>2</Text>
-              </View>
-              <Text style={styles.sectionTitle}>Bayar QRIS</Text>
-            </View>
-
-            <View style={styles.qrisCard}>
-              <Text style={styles.qrisTitle}>QRIS</Text>
-              <View style={styles.qrisBox}>
-                <Image
-                  source={QRIS_IMAGE}
-                  style={styles.qrisImage}
-                  resizeMode="contain"
-                />
-              </View>
-              <Text style={styles.qrisAmount}>{formatRupiah(totalAmount)}</Text>
-            </View>
-
-            <TouchableOpacity style={styles.uploadBtn} onPress={pickProof}>
-              <Ionicons name="cloud-upload-outline" size={20} color="#FFFFFF" />
-              <Text style={styles.uploadBtnText}>
-                {proof ? "Ganti Bukti Pembayaran" : "Upload Bukti Pembayaran"}
-              </Text>
-            </TouchableOpacity>
-            {proof && (
-              <Image source={{ uri: proof.uri }} style={styles.proofPreview} />
-            )}
-            {errors.proof && (
-              <Text style={styles.errorText}>{errors.proof}</Text>
-            )}
+            {renderCustomerFields()}
+            {renderPayment()}
           </>
         )}
 
         <Text style={[styles.sectionLabel, { marginTop: 28 }]}>
-          Order Items
+          Item Pesanan
         </Text>
         {cartItems.map(({ product, quantity }) => (
           <View key={product.id} style={styles.orderItem}>
@@ -369,7 +517,7 @@ const Payment: React.FC = () => {
             )}
             <View style={styles.orderInfo}>
               <Text style={styles.orderName}>{product.name}</Text>
-              <Text style={styles.orderQty}>Qty: {quantity}</Text>
+              <Text style={styles.orderQty}>Jml: {quantity}</Text>
             </View>
             <Text style={styles.orderPrice}>
               {formatRupiah(product.price * quantity)}
@@ -377,12 +525,13 @@ const Payment: React.FC = () => {
           </View>
         ))}
 
-        <Text style={[styles.sectionLabel, { marginTop: 28 }]}>Ringkasan</Text>
+        <Text style={[styles.sectionLabel, { marginTop: 28 }]}>
+          Ringkasan Pembayaran
+        </Text>
         <View style={styles.summaryCard}>
           {[
             ["Subtotal", totalPrice],
-            ["Admin Fee", adminFee],
-            ["Pick Up", 0],
+            ...(isDelivery ? [["Ongkir", shippingFee] as const] : []),
           ].map(([label, val]) => (
             <View key={label as string} style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>{label}</Text>
@@ -391,21 +540,38 @@ const Payment: React.FC = () => {
               </Text>
             </View>
           ))}
+          {isDelivery && distanceKm !== null && (
+            <Text
+              style={[
+                styles.shippingNote,
+                deliveryTooFar && styles.shippingNoteDanger,
+              ]}
+            >
+              {deliveryTooFar
+                ? "Jarak lebih dari 20 km, fitur antar tidak bisa digunakan."
+                : distanceKm <= 5
+                  ? "Ongkir gratis untuk jarak kurang dari 5 km."
+                  : `Ongkir dihitung ${Math.ceil(distanceKm)} km x Rp2.500.`}
+            </Text>
+          )}
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
-            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>Total Pembayaran</Text>
             <Text style={styles.totalValue}>{formatRupiah(totalAmount)}</Text>
           </View>
         </View>
 
         <View style={{ height: 30 }} />
-      </ScrollView>
+      </KeyboardAwareScreen>
 
       <View style={styles.bottomBar}>
         <TouchableOpacity
-          style={[styles.payBtn, submitting && styles.payBtnDisabled]}
+          style={[
+            styles.payBtn,
+            (submitting || deliveryTooFar) && styles.payBtnDisabled,
+          ]}
           onPress={submitOrder}
-          disabled={submitting}
+          disabled={submitting || deliveryTooFar}
         >
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" />

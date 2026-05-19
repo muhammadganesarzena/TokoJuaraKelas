@@ -3,14 +3,12 @@ import React, { useState } from "react";
 import {
     ActivityIndicator,
     Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
+import KeyboardAwareScreen from "../components/KeyboardAwareScreen";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../context/ThemeContext";
 import { getStyles } from "./LoginScreen.styles";
@@ -46,7 +44,7 @@ const ResetPasswordScreen: React.FC = () => {
     const trimmedEmail = email.trim().toLowerCase();
 
     if (!trimmedEmail) {
-      Alert.alert("Error", "Email wajib diisi.");
+      Alert.alert("Kesalahan", "Email wajib diisi.");
       return;
     }
 
@@ -71,12 +69,12 @@ const ResetPasswordScreen: React.FC = () => {
     const trimmedOtp = otp.trim();
 
     if (!trimmedEmail) {
-      Alert.alert("Error", "Email wajib diisi.");
+      Alert.alert("Kesalahan", "Email wajib diisi.");
       return;
     }
 
     if (!trimmedOtp) {
-      Alert.alert("Error", "Kode OTP wajib diisi.");
+      Alert.alert("Kesalahan", "Kode OTP wajib diisi.");
       return;
     }
 
@@ -118,17 +116,17 @@ const ResetPasswordScreen: React.FC = () => {
     const trimmedConfirmPassword = confirmPassword.trim();
 
     if (!trimmedNewPassword || !trimmedConfirmPassword) {
-      Alert.alert("Error", "Password baru dan konfirmasi wajib diisi.");
+      Alert.alert("Kesalahan", "Kata sandi baru dan konfirmasi wajib diisi.");
       return;
     }
 
     if (trimmedNewPassword.length < 6) {
-      Alert.alert("Error", "Password minimal 6 karakter.");
+      Alert.alert("Kesalahan", "Kata sandi minimal 6 karakter.");
       return;
     }
 
     if (trimmedNewPassword !== trimmedConfirmPassword) {
-      Alert.alert("Error", "Konfirmasi password tidak sama.");
+      Alert.alert("Kesalahan", "Konfirmasi kata sandi tidak sama.");
       return;
     }
 
@@ -171,7 +169,7 @@ const ResetPasswordScreen: React.FC = () => {
               style={styles.input}
               value={email}
               onChangeText={setEmail}
-              placeholder="email@example.com"
+              placeholder="email@contoh.com"
               placeholderTextColor={isDark ? "#555" : "#CCCCCC"}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -236,7 +234,7 @@ const ResetPasswordScreen: React.FC = () => {
 
     return (
       <>
-        <Text style={styles.label}>Password Baru</Text>
+        <Text style={styles.label}>Kata Sandi Baru</Text>
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
@@ -248,7 +246,7 @@ const ResetPasswordScreen: React.FC = () => {
           />
         </View>
 
-        <Text style={styles.label}>Konfirmasi Password Baru</Text>
+        <Text style={styles.label}>Konfirmasi Kata Sandi Baru</Text>
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
@@ -268,7 +266,7 @@ const ResetPasswordScreen: React.FC = () => {
           {loading ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.signInText}>Simpan Password Baru</Text>
+            <Text style={styles.signInText}>Simpan Kata Sandi Baru</Text>
           )}
         </TouchableOpacity>
       </>
@@ -276,35 +274,32 @@ const ResetPasswordScreen: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <KeyboardAwareScreen
       style={styles.flex}
+      contentContainerStyle={{ flexGrow: 1 }}
+      extraScrollHeight={48}
     >
       <View style={[styles.topSection, { height: 140 }]}>
-        <Text style={styles.welcomeText}>Reset Password</Text>
+        <Text style={styles.welcomeText}>Atur Ulang Kata Sandi</Text>
         <Text style={styles.welcomeSub}>
           {step === "email"
             ? "Masukkan email akun kamu"
             : step === "otp"
               ? "Masukkan kode OTP dari email"
-              : "Buat password baru"}
+              : "Buat kata sandi baru"}
         </Text>
       </View>
 
-      <ScrollView
-        style={[styles.bottomSection, isDark && styles.bottomSectionDark]}
-        contentContainerStyle={{ paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={[styles.bottomSection, isDark && styles.bottomSectionDark]}>
         <TouchableOpacity onPress={goToLogin} style={{ marginBottom: 20 }}>
           <Text style={{ color: "#2D6A4F", fontWeight: "600", fontSize: 14 }}>
-            ← Kembali ke Login
+            ← Kembali ke Masuk
           </Text>
         </TouchableOpacity>
 
         {renderContent()}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </KeyboardAwareScreen>
   );
 };
 

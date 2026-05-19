@@ -1,10 +1,12 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
   Image,
   Modal,
+  RefreshControl,
   StatusBar,
   StyleSheet,
   Text,
@@ -12,20 +14,34 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRefreshControl } from "../hooks/useRefreshControl";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import UserBottomNav from "../components/UserBottomNav";
 import { useHistory, type HistoryItem } from "../context/HistoryContext";
 import { useTheme } from "../context/ThemeContext";
 
-const ORANGE = "#2D6A4F";
+const ACCENT = "#2D6A4F";
 const formatRupiah = (amount: number) => "Rp " + amount.toLocaleString("id-ID");
 
 type SortOption = "newest" | "oldest" | "highest" | "lowest";
-type StatusFilter = "all" | "completed" | "processing" | "cancelled";
+type StatusFilter =
+  | "all"
+  | "completed"
+  | "processing"
+  | "delivering"
+  | "cancelled";
 
 const History: React.FC = () => {
   const { colors } = useTheme();
-  const { historyItems } = useHistory();
+  const { historyItems, refreshHistory, loadingHistory } = useHistory();
+  const { refreshing, onRefresh } = useRefreshControl(refreshHistory);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshHistory();
+    }, [refreshHistory]),
+  );
+
   const [search, setSearch] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("newest");
@@ -46,6 +62,9 @@ const History: React.FC = () => {
     }
   }, [showFilter, sheetAnim]);
 
+  const orderGrandTotal = (item: HistoryItem) =>
+    item.totalPrice + (item.shippingFee || 0);
+
   const filtered = historyItems
     .filter((item) => {
       const q = search.toLowerCase();
@@ -54,28 +73,41 @@ const History: React.FC = () => {
         item.refNumber.toLowerCase().includes(q) ||
         item.name.toLowerCase().includes(q);
       const matchStatus =
-        statusFilter === "all" || item.status === statusFilter;
+        statusFilter === "all" ||
+        item.status === statusFilter ||
+        (statusFilter === "processing" &&
+          (item.status === "processing" || item.status === "ready_for_pickup"));
       return matchSearch && matchStatus;
     })
     .sort((a, b) => {
       if (sortBy === "newest") return b.id.localeCompare(a.id);
       if (sortBy === "oldest") return a.id.localeCompare(b.id);
       if (sortBy === "highest")
-        return b.totalPrice + b.adminFee - (a.totalPrice + a.adminFee);
+        return orderGrandTotal(b) - orderGrandTotal(a);
       if (sortBy === "lowest")
-        return a.totalPrice + a.adminFee - (b.totalPrice + b.adminFee);
+        return orderGrandTotal(a) - orderGrandTotal(b);
       return 0;
     });
 
   const statusColor = (status: HistoryItem["status"]) => {
     if (status === "completed") return "#34C759";
-    if (status === "processing") return "#FF9500";
+    if (status === "delivering") return "#7B1FA2";
+    if (status === "ready_for_pickup") return "#F59E0B";
+    if (status === "processing") return "#2D6A4F";
     return "#FF3B30";
+  };
+
+  const statusLabel = (status: HistoryItem["status"]) => {
+    if (status === "completed") return "Selesai";
+    if (status === "delivering") return "Sedang dikirim";
+    if (status === "ready_for_pickup") return "Siap diambil";
+    if (status === "processing") return "Menunggu verifikasi";
+    return "Dibatalkan";
   };
 
   const renderItem = ({ item }: { item: HistoryItem }) => {
     const firstProduct = item.products[0];
-    const total = item.totalPrice + item.adminFee;
+    const total = orderGrandTotal(item);
     const shortRef = item.refNumber.slice(-6).toUpperCase();
     return (
       <View style={[styles.card, { backgroundColor: colors.card }]}>
@@ -103,9 +135,9 @@ const History: React.FC = () => {
                 style={[styles.productName, { color: colors.text }]}
                 numberOfLines={1}
               >
-                {firstProduct?.productName || "Order"}
+                {firstProduct?.productName || "Pesanan"}
                 {item.products.length > 1
-                  ? ` +${item.products.length - 1} more`
+                  ? ` +${item.products.length - 1} lainnya`
                   : ""}
               </Text>
               <Text style={[styles.refText, { color: colors.textMuted }]}>
@@ -128,7 +160,7 @@ const History: React.FC = () => {
                     { color: statusColor(item.status) },
                   ]}
                 >
-                  {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                  {statusLabel(item.status)}
                 </Text>
               </View>
               <TouchableOpacity
@@ -161,8 +193,8 @@ const History: React.FC = () => {
         styles.filterChip,
         { borderColor: colors.border, backgroundColor: colors.card },
         sortBy === value && {
-          borderColor: ORANGE,
-          backgroundColor: ORANGE + "18",
+          borderColor: ACCENT,
+          backgroundColor: "#2D6A4F18",
         },
       ]}
       onPress={() => setSortBy(value)}
@@ -171,7 +203,7 @@ const History: React.FC = () => {
         style={[
           styles.filterChipText,
           { color: colors.textSecondary },
-          sortBy === value && { color: ORANGE, fontWeight: "700" },
+          sortBy === value && { color: ACCENT, fontWeight: "700" },
         ]}
       >
         {label}
@@ -191,8 +223,8 @@ const History: React.FC = () => {
         styles.filterChip,
         { borderColor: colors.border, backgroundColor: colors.card },
         statusFilter === value && {
-          borderColor: ORANGE,
-          backgroundColor: ORANGE + "18",
+          borderColor: ACCENT,
+          backgroundColor: "#2D6A4F18",
         },
       ]}
       onPress={() => setStatusFilter(value)}
@@ -201,7 +233,7 @@ const History: React.FC = () => {
         style={[
           styles.filterChipText,
           { color: colors.textSecondary },
-          statusFilter === value && { color: ORANGE, fontWeight: "700" },
+          statusFilter === value && { color: ACCENT, fontWeight: "700" },
         ]}
       >
         {label}
@@ -225,7 +257,7 @@ const History: React.FC = () => {
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          History
+          Riwayat
         </Text>
         <View style={{ width: 40 }} />
       </View>
@@ -238,7 +270,7 @@ const History: React.FC = () => {
           <Ionicons name="search-outline" size={18} color={colors.textMuted} />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search History."
+            placeholder="Cari riwayat pesanan..."
             placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
@@ -266,10 +298,10 @@ const History: React.FC = () => {
         <View style={styles.emptyContainer}>
           <Ionicons name="receipt-outline" size={80} color={colors.textMuted} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            No Saved Items!
+            Belum Ada Pesanan!
           </Text>
           <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>
-            {"You don't have any saved items.\nGo to home and add some."}
+            {"Kamu belum punya pesanan.\nMulai belanja dari beranda."}
           </Text>
         </View>
       ) : (
@@ -279,6 +311,14 @@ const History: React.FC = () => {
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing || loadingHistory}
+              onRefresh={onRefresh}
+              colors={[ACCENT]}
+              tintColor={ACCENT}
+            />
+          }
         />
       )}
 
@@ -307,19 +347,19 @@ const History: React.FC = () => {
             style={[styles.filterHandle, { backgroundColor: colors.border }]}
           />
           <Text style={[styles.filterTitle, { color: colors.text }]}>
-            Filter & Sort
+            Filter & Urutkan
           </Text>
 
           <Text
             style={[styles.filterSectionLabel, { color: colors.textMuted }]}
           >
-            Sort By
+            Urutkan
           </Text>
           <View style={styles.filterRow}>
-            <SortButton label="Newest" value="newest" />
-            <SortButton label="Oldest" value="oldest" />
-            <SortButton label="Highest" value="highest" />
-            <SortButton label="Lowest" value="lowest" />
+            <SortButton label="Terbaru" value="newest" />
+            <SortButton label="Terlama" value="oldest" />
+            <SortButton label="Tertinggi" value="highest" />
+            <SortButton label="Terendah" value="lowest" />
           </View>
 
           <Text
@@ -328,17 +368,18 @@ const History: React.FC = () => {
             Status
           </Text>
           <View style={styles.filterRow}>
-            <StatusButton label="All" value="all" />
-            <StatusButton label="Completed" value="completed" />
-            <StatusButton label="Processing" value="processing" />
-            <StatusButton label="Cancelled" value="cancelled" />
+            <StatusButton label="Semua" value="all" />
+            <StatusButton label="Selesai" value="completed" />
+            <StatusButton label="Diproses" value="processing" />
+            <StatusButton label="Dikirim" value="delivering" />
+            <StatusButton label="Dibatalkan" value="cancelled" />
           </View>
 
           <TouchableOpacity
             style={styles.applyBtn}
             onPress={() => setShowFilter(false)}
           >
-            <Text style={styles.applyBtnText}>Apply</Text>
+            <Text style={styles.applyBtnText}>Terapkan</Text>
           </TouchableOpacity>
         </Animated.View>
       </Modal>
@@ -427,7 +468,7 @@ const styles = StyleSheet.create({
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   statusText: { fontSize: 11, fontWeight: "600" },
   detailBtn: {
-    backgroundColor: ORANGE,
+    backgroundColor: ACCENT,
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
@@ -487,7 +528,7 @@ const styles = StyleSheet.create({
   },
   filterChipText: { fontSize: 13, fontWeight: "500" },
   applyBtn: {
-    backgroundColor: ORANGE,
+    backgroundColor: ACCENT,
     borderRadius: 14,
     paddingVertical: 16,
     alignItems: "center",

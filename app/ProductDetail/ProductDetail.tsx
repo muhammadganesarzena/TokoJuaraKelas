@@ -1,15 +1,15 @@
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    ImageSourcePropType,
-    ScrollView,
-    StatusBar,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  ImageSourcePropType,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useCart } from "../context/CartContext";
@@ -24,13 +24,8 @@ const ProductDetail: React.FC = () => {
   const { colors } = useTheme();
   const styles = getStyles(colors);
   const { id } = useLocalSearchParams<{ id: string }>();
-  const {
-    products,
-    recommended,
-    likedProducts,
-    loadingProducts,
-    toggleLike,
-  } = useProducts();
+  const { products, recommended, likedProducts, loadingProducts, toggleLike } =
+    useProducts();
   const { addToCart, buyNow } = useCart();
 
   const [selectedThumb, setSelectedThumb] = useState(0);
@@ -66,7 +61,7 @@ const ProductDetail: React.FC = () => {
   if (loadingProducts) {
     return (
       <View style={styles.notFound}>
-        <ActivityIndicator size="large" color="#E8622A" />
+        <ActivityIndicator size="large" color={colors.accent} />
         <Text style={styles.notFoundText}>Memuat produk...</Text>
       </View>
     );
@@ -75,9 +70,9 @@ const ProductDetail: React.FC = () => {
   if (!product) {
     return (
       <View style={styles.notFound}>
-        <Text style={styles.notFoundText}>Product not found.</Text>
+        <Text style={styles.notFoundText}>Produk tidak ditemukan.</Text>
         <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backLink}>← Back</Text>
+          <Text style={styles.backLink}>← Kembali</Text>
         </TouchableOpacity>
       </View>
     );
@@ -101,7 +96,10 @@ const ProductDetail: React.FC = () => {
     setBuyingNow(false);
 
     if (!ready) {
-      Alert.alert("Gagal", "Produk belum bisa langsung dibeli. Coba login ulang.");
+      Alert.alert(
+        "Gagal",
+        "Produk belum bisa langsung dibeli. Coba login ulang.",
+      );
       return;
     }
 
@@ -161,21 +159,21 @@ const ProductDetail: React.FC = () => {
         <View style={styles.infoSection}>
           <View style={styles.nameRow}>
             <Text style={styles.productName}>{product.name}</Text>
-            <Text style={styles.stockText}>In Stock</Text>
+            <Text style={styles.stockText}>Tersedia</Text>
           </View>
           <View style={styles.priceRow}>
             <Text style={styles.price}>{formatRupiah(product.price)}</Text>
             <View style={styles.ratingRow}>
-              <Ionicons name="star" size={15} color="#E8622A" />
+              <Ionicons name="star" size={15} color={colors.accent} />
               <Text style={styles.ratingValue}>{product.rating ?? 4.2}</Text>
               <Text style={styles.reviewCount}>
-                ({product.reviewCount ?? 321} Reviews)
+                ({product.reviewCount ?? 321} Ulasan)
               </Text>
             </View>
           </View>
           <Text style={styles.description}>
             {product.description ??
-              "The name says it all, the right size slightly snugs the body leaving enough room for comfort in the sleeves and waist."}
+              "Produk berkualitas dengan bahan nyaman dipakai sehari-hari."}
           </Text>
         </View>
       </ScrollView>
@@ -189,7 +187,7 @@ const ProductDetail: React.FC = () => {
           <Ionicons
             name={addedToCart ? "checkmark" : "cart-outline"}
             size={16}
-            color={addedToCart ? "#FFFFFF" : "#E8622A"}
+            color={addedToCart ? "#FFFFFF" : colors.accent}
             style={{ marginRight: 6 }}
           />
           <Text
@@ -198,7 +196,7 @@ const ProductDetail: React.FC = () => {
               addedToCart && styles.addToCartTextAdded,
             ]}
           >
-            {addedToCart ? "Added!" : "Add to Cart"}
+            {addedToCart ? "Ditambahkan!" : "Keranjang"}
           </Text>
         </TouchableOpacity>
 
@@ -210,7 +208,7 @@ const ProductDetail: React.FC = () => {
           {buyingNow ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.buyNowText}>Buy Now</Text>
+            <Text style={styles.buyNowText}>Beli Sekarang</Text>
           )}
         </TouchableOpacity>
       </View>

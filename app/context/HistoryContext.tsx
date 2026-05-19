@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { mapOrderRowToHistoryItem } from "../../lib/orders";
 import { supabase } from "../../lib/supabase";
 
 export type HistoryItem = {
@@ -11,11 +18,16 @@ export type HistoryItem = {
   paymentTime: string;
   totalPrice: number;
   adminFee: number;
+  shippingFee?: number;
   name: string;
   email: string;
   phone: string;
   address: string;
   city: string;
+  houseNote?: string;
+  deliveryDistanceKm?: number;
+  deliveryLat?: number;
+  deliveryLng?: number;
   products: {
     productId: string;
     productName: string;
@@ -23,13 +35,20 @@ export type HistoryItem = {
     quantity: number;
     image: any;
   }[];
-  status: "completed" | "processing" | "cancelled";
+  status:
+    | "completed"
+    | "processing"
+    | "delivering"
+    | "ready_for_pickup"
+    | "cancelled";
 };
 
 type HistoryContextType = {
   historyItems: HistoryItem[];
   addHistory: (item: HistoryItem) => void;
   deleteHistory: (id: string) => void;
+  completeOrder: (id: string) => Promise<void>;
+  refreshHistory: () => Promise<void>;
   loadingHistory: boolean;
 };
 
@@ -42,6 +61,29 @@ export const HistoryProvider: React.FC<{ children: React.ReactNode }> = ({
   const [userId, setUserId] = useState<string | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
+  const fetchHistory = useCallback(async (uid: string, silent = false) => {
+    if (!silent) setLoadingHistory(true);
+
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setHistoryItems(
+        data.map((row) => mapOrderRowToHistoryItem(row as Record<string, unknown>)),
+      );
+    }
+
+    if (!silent) setLoadingHistory(false);
+  }, []);
+
+  const refreshHistory = useCallback(async () => {
+    if (!userId) return;
+    await fetchHistory(userId);
+  }, [userId, fetchHistory]);
+
   useEffect(() => {
     const init = async () => {
       const {
@@ -50,64 +92,51 @@ export const HistoryProvider: React.FC<{ children: React.ReactNode }> = ({
       if (user) {
         setUserId(user.id);
         await fetchHistory(user.id);
+      } else {
+        setLoadingHistory(false);
       }
-      setLoadingHistory(false);
     };
     init();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (_event, session) => {
         if (session?.user) {
           setUserId(session.user.id);
           await fetchHistory(session.user.id);
         } else {
           setUserId(null);
           setHistoryItems([]);
+          setLoadingHistory(false);
         }
       },
     );
 
     return () => listener.subscription.unsubscribe();
-  }, []);
+  }, [fetchHistory]);
 
-  const fetchHistory = async (uid: string) => {
-    setLoadingHistory(true);
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: false });
+  useEffect(() => {
+    if (!userId) return;
 
-    if (!error && data) {
-      const mapped: HistoryItem[] = data.map((item: any) => ({
-        id: item.id,
-        refNumber: item.ref_number || item.id,
-        pickupCode: item.pickup_code,
-        paymentMethod: item.payment_method || "qris",
-        paymentStatus: item.payment_status,
-        fulfillmentType: item.fulfillment_type || "pickup",
-        paymentTime: item.created_at
-          ? new Date(item.created_at).toLocaleString("id-ID")
-          : "-",
-        totalPrice: item.subtotal ?? Math.max((item.total_price || 0) - (item.admin_fee || 0), 0),
-        adminFee: item.admin_fee || 0,
-        name: item.customer_name || item.name || "-",
-        email: item.email || "-",
-        phone: item.phone || "-",
-        address: item.fulfillment_type === "delivery" ? item.address || "-" : "Pick up di toko",
-        city: item.city || "-",
-        products: item.items || item.products || [],
-        status:
-          item.status === "accepted" || item.status === "selesai"
-            ? "completed"
-            : item.status === "batal" || item.status === "rejected"
-              ? "cancelled"
-              : "processing",
-      }));
-      setHistoryItems(mapped);
-    }
-    setLoadingHistory(false);
-  };
+    const channel = supabase
+      .channel(`orders-user-${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          void fetchHistory(userId, true);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [userId, fetchHistory]);
 
   const addHistory = async (item: HistoryItem) => {
     if (!userId) return;
@@ -119,11 +148,13 @@ export const HistoryProvider: React.FC<{ children: React.ReactNode }> = ({
         ref_number: item.refNumber,
         payment_time: item.paymentTime,
         total_price: item.totalPrice,
-        admin_fee: item.adminFee,
+        admin_fee: 0,
+        shipping_fee: item.shippingFee || 0,
         name: item.name,
         email: item.email,
         phone: item.phone,
         address: item.address,
+        house_note: item.houseNote || null,
         city: item.city,
         products: item.products,
         status: item.status,
@@ -147,9 +178,33 @@ export const HistoryProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const completeOrder = async (id: string) => {
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: "selesai" })
+      .eq("id", id);
+
+    if (!error) {
+      setHistoryItems((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, status: "completed" } : item,
+        ),
+      );
+    } else {
+      throw error;
+    }
+  };
+
   return (
     <HistoryContext.Provider
-      value={{ historyItems, addHistory, deleteHistory, loadingHistory }}
+      value={{
+        historyItems,
+        addHistory,
+        deleteHistory,
+        completeOrder,
+        refreshHistory,
+        loadingHistory,
+      }}
     >
       {children}
     </HistoryContext.Provider>

@@ -1,7 +1,7 @@
 import { Redirect } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { getAdminSession } from "../lib/adminSession";
+import { getAdminSession, goToAdminDashboard } from "../lib/adminSession";
 import { supabase } from "../lib/supabase";
 
 export default function Login() {
@@ -13,7 +13,7 @@ export default function Login() {
     const checkSession = async () => {
       const adminSession = await getAdminSession();
       if (adminSession) {
-        setRedirectTo("/admin/overview");
+        goToAdminDashboard();
         return;
       }
 

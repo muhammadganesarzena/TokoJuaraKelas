@@ -1,8 +1,6 @@
 import { StyleSheet } from "react-native";
 import type { Colors } from "../context/ThemeContext";
 
-const ORANGE = "#E8622A";
-
 export const getStyles = (colors: Colors) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.background },
@@ -49,11 +47,11 @@ export const getStyles = (colors: Colors) =>
       height: 28,
       borderRadius: 14,
       borderWidth: 2,
-      borderColor: ORANGE,
+      borderColor: colors.accent,
       justifyContent: "center",
       alignItems: "center",
     },
-    sectionNumberText: { fontSize: 13, fontWeight: "700", color: ORANGE },
+    sectionNumberText: { fontSize: 13, fontWeight: "700", color: colors.accent },
     sectionTitle: { fontSize: 16, fontWeight: "700", color: colors.text },
 
     optionRow: { flexDirection: "row", gap: 12, marginBottom: 4 },
@@ -69,8 +67,8 @@ export const getStyles = (colors: Colors) =>
       gap: 6,
     },
     optionCardSelected: {
-      borderColor: ORANGE,
-      backgroundColor: ORANGE + "12",
+      borderColor: colors.accent,
+      backgroundColor: colors.accentSoft,
     },
     optionTitle: { fontSize: 15, fontWeight: "800", color: colors.text },
     optionSub: { fontSize: 12, color: colors.textMuted, lineHeight: 16 },
@@ -82,7 +80,7 @@ export const getStyles = (colors: Colors) =>
       borderRadius: 12,
       padding: 16,
       borderLeftWidth: 3,
-      borderLeftColor: ORANGE,
+      borderLeftColor: colors.accent,
     },
     shippingInfo: { flex: 1, gap: 2 },
     shippingName: { fontSize: 15, fontWeight: "700", color: colors.text },
@@ -169,7 +167,7 @@ export const getStyles = (colors: Colors) =>
       borderWidth: 2,
       borderColor: colors.border,
     },
-    radioSelected: { borderColor: ORANGE, borderWidth: 5 },
+    radioSelected: { borderColor: colors.accent, borderWidth: 5 },
     radioLabel: { fontSize: 14, color: colors.textSecondary },
 
     cardSection: {
@@ -200,13 +198,16 @@ export const getStyles = (colors: Colors) =>
       borderColor: colors.border,
       backgroundColor: colors.card,
     },
-    methodChipSelected: { borderColor: ORANGE, backgroundColor: ORANGE + "18" },
+    methodChipSelected: {
+      borderColor: colors.accent,
+      backgroundColor: colors.accentSoft,
+    },
     methodChipText: {
       fontSize: 11,
       fontWeight: "700",
       color: colors.textMuted,
     },
-    methodChipTextSelected: { color: ORANGE },
+    methodChipTextSelected: { color: colors.accent },
     cardRow: { flexDirection: "row", gap: 12 },
     cardRowHalf: { flex: 1 },
 
@@ -236,7 +237,7 @@ export const getStyles = (colors: Colors) =>
     qrisCell: { width: 18, height: 18 },
     qrisCellDark: { backgroundColor: "#111111" },
     qrisCellLight: { backgroundColor: "#FFFFFF" },
-    qrisAmount: { fontSize: 18, fontWeight: "800", color: ORANGE },
+    qrisAmount: { fontSize: 18, fontWeight: "800", color: colors.accent },
     uploadBtn: {
       marginTop: 14,
       backgroundColor: "#2D6A4F",
@@ -255,6 +256,37 @@ export const getStyles = (colors: Colors) =>
       borderRadius: 12,
       marginTop: 12,
       backgroundColor: colors.cardAlt,
+    },
+    mapHint: {
+      marginTop: 8,
+      fontSize: 12,
+      color: colors.textMuted,
+      lineHeight: 17,
+    },
+    distanceCard: {
+      marginTop: 10,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      backgroundColor: "#2D6A4F14",
+      borderWidth: 1,
+      borderColor: "#2D6A4F30",
+    },
+    distanceCardDanger: {
+      backgroundColor: "#E5393514",
+      borderColor: "#E5393530",
+    },
+    distanceText: {
+      flex: 1,
+      fontSize: 13,
+      color: "#2D6A4F",
+      fontWeight: "700",
+    },
+    distanceTextDanger: {
+      color: "#E53935",
     },
 
     orderItem: {
@@ -286,7 +318,16 @@ export const getStyles = (colors: Colors) =>
     summaryValue: { fontSize: 14, fontWeight: "600", color: colors.text },
     divider: { height: 1, backgroundColor: colors.border, marginVertical: 6 },
     totalLabel: { fontSize: 16, fontWeight: "700", color: colors.text },
-    totalValue: { fontSize: 18, fontWeight: "800", color: ORANGE },
+    totalValue: { fontSize: 18, fontWeight: "800", color: colors.accent },
+    shippingNote: {
+      fontSize: 12,
+      color: colors.textMuted,
+      lineHeight: 17,
+    },
+    shippingNoteDanger: {
+      color: "#E53935",
+      fontWeight: "700",
+    },
 
     bottomBar: {
       backgroundColor: colors.surface,
@@ -297,7 +338,7 @@ export const getStyles = (colors: Colors) =>
       paddingBottom: 34,
     },
     payBtn: {
-      backgroundColor: ORANGE,
+      backgroundColor: colors.accent,
       borderRadius: 16,
       paddingVertical: 16,
       alignItems: "center",

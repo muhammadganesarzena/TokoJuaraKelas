@@ -1,6 +1,8 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useCallback, useRef, useState } from "react";
+import { RefreshControl } from "react-native";
+import { useRefreshControl } from "../hooks/useRefreshControl";
 import {
   ActivityIndicator,
   Animated,
@@ -44,9 +46,11 @@ const Homepage: React.FC = () => {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifPressed, setNotifPressed] = useState(false);
+  const { refreshing, onRefresh } = useRefreshControl(refreshProducts);
+
   useFocusEffect(
     useCallback(() => {
-      refreshProducts();
+      void refreshProducts();
     }, [refreshProducts]),
   );
 
@@ -189,6 +193,14 @@ const Homepage: React.FC = () => {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#2D6A4F"]}
+            tintColor="#2D6A4F"
+          />
+        }
       >
         {/* Header */}
         <View style={styles.header}>
@@ -239,14 +251,14 @@ const Homepage: React.FC = () => {
           </View>
         </View>
 
-        <Text style={styles.feedTitle}>Your Feed</Text>
+        <Text style={styles.feedTitle}>Feed Kamu</Text>
 
         <BannerSlider />
 
         {/* Recommended */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recommended for you</Text>
-          <Text style={styles.sectionSub}>Based on Search</Text>
+          <Text style={styles.sectionTitle}>Rekomendasi untuk Kamu</Text>
+          <Text style={styles.sectionSub}>Berdasarkan pencarian</Text>
         </View>
 
         <FlatList
@@ -262,7 +274,7 @@ const Homepage: React.FC = () => {
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Kategori</Text>
           <TouchableOpacity>
-            <Text style={styles.viewAll}>View All</Text>
+            <Text style={styles.viewAll}>Lihat Semua</Text>
           </TouchableOpacity>
         </View>
 

@@ -1,16 +1,25 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRefreshControl } from "../hooks/useRefreshControl";
 import Svg, {
   Circle,
   Defs,
@@ -21,6 +30,8 @@ import Svg, {
 import { supabase } from "../../lib/supabase";
 import AdminHeader from "./components/AdminHeader";
 import AdminSidebar from "./components/AdminSidebar";
+import { useAdminTheme } from "./hooks/useAdminTheme";
+import { createOverviewStyles } from "./styles/overviewStyles";
 
 const { width } = Dimensions.get("window");
 const CHART_W = width - 80; // card padding 16*2 + y-label 36 + margin 12
@@ -220,40 +231,12 @@ function SparkBar({
   );
 }
 
-// ─── Animated Counter ─────────────────────────────────────────────────────────
-function AnimatedNumber({
-  value,
-  suffix = "",
-}: {
-  value: number;
-  suffix?: string;
-}) {
-  const anim = useRef(new Animated.Value(0)).current;
-  const [disp, setDisp] = useState(0);
-  useEffect(() => {
-    anim.setValue(0);
-    Animated.timing(anim, {
-      toValue: value,
-      duration: 1100,
-      useNativeDriver: false,
-    }).start();
-    const l = anim.addListener(({ value: v }) => setDisp(Math.floor(v)));
-    return () => anim.removeListener(l);
-  }, [value]);
-  return (
-    <Text style={styles.statNum}>
-      {disp.toLocaleString("id-ID")}
-      {suffix}
-    </Text>
-  );
-}
-
 // ─── Configs ──────────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<
   string,
   { color: string; icon: keyof typeof Ionicons.glyphMap; bg: string }
 > = {
-  pending: { color: "#F59E0B", icon: "time-outline", bg: "#FEF3C7" },
+  pending: { color: "#2D6A4F", icon: "time-outline", bg: "#E8F5E9" },
   accepted: {
     color: "#10B981",
     icon: "checkmark-circle-outline",
@@ -288,7 +271,7 @@ const QUICK_ACTIONS = [
     label: "Kelola User",
     desc: "Data pengguna terdaftar",
     icon: "people-outline" as const,
-    color: "#F59E0B",
+    color: "#2D6A4F",
     route: "/admin/users",
   },
   {
@@ -363,6 +346,41 @@ function groupOrders(orders: any[], period: Period): ChartPoint[] {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Overview() {
+  const { colors, isDark } = useAdminTheme();
+  const styles = useMemo(
+    () => createOverviewStyles(colors, isDark, width),
+    [colors, isDark],
+  );
+
+  const AnimatedNumber = ({
+    value,
+    suffix = "",
+  }: {
+    value: number;
+    suffix?: string;
+  }) => {
+    const anim = useRef(new Animated.Value(0)).current;
+    const [disp, setDisp] = useState(0);
+
+    useEffect(() => {
+      anim.setValue(0);
+      Animated.timing(anim, {
+        toValue: value,
+        duration: 1100,
+        useNativeDriver: false,
+      }).start();
+      const l = anim.addListener(({ value: v }) => setDisp(Math.floor(v)));
+      return () => anim.removeListener(l);
+    }, [value, anim]);
+
+    return (
+      <Text style={styles.statNum}>
+        {disp.toLocaleString("id-ID")}
+        {suffix}
+      </Text>
+    );
+  };
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"overview" | "orders">("overview");
@@ -382,22 +400,8 @@ export default function Overview() {
   );
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  useEffect(() => {
-    if (!allOrders.length) return;
-    setChartLoading(true);
-    const t = setTimeout(() => {
-      setChartData(groupOrders(allOrders, period));
-      setChartLoading(false);
-    }, 180);
-    return () => clearTimeout(t);
-  }, [period, allOrders]);
-
-  const fetchStats = async () => {
-    setLoading(true);
+  const fetchStats = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     const [products, orders, users] = await Promise.all([
       supabase.from("products").select("id"),
       supabase
@@ -422,13 +426,37 @@ export default function Overview() {
       bs[o.status] = (bs[o.status] || 0) + 1;
     });
     setOrdersByStatus(bs);
-    setLoading(false);
+    if (!silent) setLoading(false);
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 500,
       useNativeDriver: true,
     }).start();
-  };
+  }, [fadeAnim]);
+
+  const { refreshing, onRefresh } = useRefreshControl(async () => {
+    await fetchStats(true);
+  });
+
+  useEffect(() => {
+    void fetchStats();
+  }, [fetchStats]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void fetchStats(true);
+    }, [fetchStats]),
+  );
+
+  useEffect(() => {
+    if (!allOrders.length) return;
+    setChartLoading(true);
+    const t = setTimeout(() => {
+      setChartData(groupOrders(allOrders, period));
+      setChartLoading(false);
+    }, 180);
+    return () => clearTimeout(t);
+  }, [period, allOrders]);
 
   const totalForPct = Math.max(stats.totalOrders, 1);
   const chartTotal = chartData.reduce((s, d) => s + d.value, 0);
@@ -439,7 +467,7 @@ export default function Overview() {
       value: stats.totalProducts,
       icon: "cube" as const,
       color: "#3B82F6",
-      bg: "#EFF6FF",
+      bg: isDark ? colors.card : "#EFF6FF",
       spark: [2, 2, 3, 4, 4, 5, stats.totalProducts % 10 || 4],
       suffix: "",
     },
@@ -448,7 +476,7 @@ export default function Overview() {
       value: stats.totalOrders,
       icon: "cart" as const,
       color: "#10B981",
-      bg: "#ECFDF5",
+      bg: isDark ? colors.card : "#ECFDF5",
       spark: [3, 7, 5, 12, 8, 15, stats.totalOrders % 20 || 10],
       suffix: "",
     },
@@ -456,17 +484,17 @@ export default function Overview() {
       label: "Pengguna",
       value: stats.totalUsers,
       icon: "people" as const,
-      color: "#F59E0B",
-      bg: "#FFFBEB",
+      color: colors.accent,
+      bg: isDark ? colors.card : "#E8F5E9",
       spark: [1, 2, 2, 4, 3, 5, stats.totalUsers % 10 || 3],
       suffix: "",
     },
     {
-      label: "Revenue",
+      label: "Pendapatan",
       value: Math.floor(stats.totalRevenue / 1000),
       icon: "cash" as const,
       color: "#8B5CF6",
-      bg: "#F5F3FF",
+      bg: isDark ? colors.card : "#F5F3FF",
       spark: [
         1,
         4,
@@ -482,11 +510,11 @@ export default function Overview() {
 
   return (
     <View style={styles.container}>
-      <AdminHeader title="Overview" onMenuPress={() => setSidebarOpen(true)} />
+      <AdminHeader title="Ringkasan" onMenuPress={() => setSidebarOpen(true)} />
 
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color="#1B4332" />
+          <ActivityIndicator size="large" color={colors.accent} />
           <Text style={styles.loadingText}>Memuat data...</Text>
         </View>
       ) : (
@@ -502,7 +530,7 @@ export default function Overview() {
                 <Ionicons
                   name={t === "overview" ? "grid-outline" : "receipt-outline"}
                   size={15}
-                  color={tab === t ? "#1B4332" : "#888"}
+                  color={tab === t ? colors.accent : colors.textMuted}
                   style={{ marginRight: 5 }}
                 />
                 <Text
@@ -517,6 +545,14 @@ export default function Overview() {
           <ScrollView
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[colors.accent]}
+                tintColor={colors.accent}
+              />
+            }
           >
             {tab === "overview" ? (
               <>
@@ -556,9 +592,9 @@ export default function Overview() {
                   <Ionicons
                     name="bar-chart-outline"
                     size={16}
-                    color="#1B4332"
+                    color={colors.accent}
                   />
-                  <Text style={styles.sectionTitle}>Grafik Revenue</Text>
+                  <Text style={styles.sectionTitle}>Grafik Pendapatan</Text>
                 </View>
 
                 <View style={styles.chartCard}>
@@ -604,7 +640,7 @@ export default function Overview() {
                           alignItems: "center",
                         }}
                       >
-                        <ActivityIndicator size="small" color="#10B981" />
+                        <ActivityIndicator size="small" color={colors.accent} />
                       </View>
                     ) : (
                       <RevenueChart data={chartData} color="#10B981" />
@@ -617,7 +653,7 @@ export default function Overview() {
                   <Ionicons
                     name="pie-chart-outline"
                     size={16}
-                    color="#1B4332"
+                    color={colors.accent}
                   />
                   <Text style={styles.sectionTitle}>
                     Distribusi Status Order
@@ -664,7 +700,7 @@ export default function Overview() {
 
                 {/* Quick Actions */}
                 <View style={styles.sectionHeader}>
-                  <Ionicons name="flash-outline" size={16} color="#1B4332" />
+                  <Ionicons name="flash-outline" size={16} color={colors.accent} />
                   <Text style={styles.sectionTitle}>Aksi Cepat</Text>
                 </View>
                 <View style={styles.quickActions}>
@@ -700,12 +736,12 @@ export default function Overview() {
               <>
                 {/* Order Terbaru */}
                 <View style={styles.sectionHeader}>
-                  <Ionicons name="time-outline" size={16} color="#1B4332" />
+                  <Ionicons name="time-outline" size={16} color={colors.accent} />
                   <Text style={styles.sectionTitle}>5 Order Terbaru</Text>
                 </View>
                 {recentOrders.length === 0 ? (
                   <View style={styles.emptyWrap}>
-                    <Ionicons name="receipt-outline" size={48} color="#ccc" />
+                    <Ionicons name="receipt-outline" size={48} color={colors.textMuted} />
                     <Text style={styles.emptyText}>Belum ada order</Text>
                   </View>
                 ) : (
@@ -803,7 +839,7 @@ export default function Overview() {
                                 <Ionicons
                                   name="cash-outline"
                                   size={13}
-                                  color="#1B4332"
+                                  color={colors.accent}
                                 />
                                 <Text style={styles.orderPrice}>
                                   Rp {o.total_price.toLocaleString("id-ID")}
@@ -824,14 +860,14 @@ export default function Overview() {
                       style={styles.lihatSemuaBtn}
                       onPress={() => router.push("/admin/orders" as any)}
                     >
-                      <Ionicons name="list-outline" size={16} color="#1B4332" />
+                      <Ionicons name="list-outline" size={16} color={colors.accent} />
                       <Text style={styles.lihatSemuaText}>
                         Lihat Semua Order
                       </Text>
                       <Ionicons
                         name="arrow-forward-outline"
                         size={14}
-                        color="#1B4332"
+                        color={colors.accent}
                       />
                     </TouchableOpacity>
                   </>
@@ -850,222 +886,3 @@ export default function Overview() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFB" },
-  loadingWrap: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  loadingText: { fontSize: 13, color: "#888", fontWeight: "500" },
-
-  tabBar: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginTop: 14,
-    borderRadius: 12,
-    padding: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 9,
-    borderRadius: 9,
-  },
-  tabActive: { backgroundColor: "#E8F5E9" },
-  tabText: { fontSize: 13, fontWeight: "600", color: "#888" },
-  tabTextActive: { color: "#1B4332" },
-
-  content: { padding: 16, paddingBottom: 48 },
-
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    marginBottom: 12,
-    marginTop: 20,
-  },
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#1a1a2e" },
-
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  statCard: {
-    width: (width - 44) / 2,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  statCardTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statNum: { fontSize: 26, fontWeight: "800", color: "#1a1a2e" },
-  statLabel: { fontSize: 12, color: "#666", marginTop: 2, fontWeight: "500" },
-
-  // ── Chart Card
-  chartCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    paddingBottom: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  chartHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  chartLabelSub: { fontSize: 11, color: "#9CA3AF", fontWeight: "500" },
-  chartLabelVal: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#1a1a2e",
-    marginTop: 2,
-  },
-  periodRow: {
-    flexDirection: "row",
-    backgroundColor: "#F3F4F6",
-    borderRadius: 8,
-    padding: 2,
-    gap: 2,
-  },
-  periodPill: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 6 },
-  periodPillActive: { backgroundColor: "#1B4332" },
-  periodText: { fontSize: 11, fontWeight: "600", color: "#6B7280" },
-  periodTextActive: { color: "#fff" },
-
-  // ── Distribution
-  distCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    gap: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  statusRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  statusDot: { width: 7, height: 7, borderRadius: 4, marginRight: 2 },
-  statusLabel: { fontSize: 12, fontWeight: "600", color: "#444", width: 60 },
-  progTrack: {
-    flex: 1,
-    height: 6,
-    backgroundColor: "#F0F0F0",
-    borderRadius: 4,
-    overflow: "hidden",
-    marginHorizontal: 8,
-  },
-  progFill: { height: "100%", borderRadius: 4 },
-  statusCount: {
-    fontSize: 12,
-    fontWeight: "700",
-    width: 22,
-    textAlign: "right",
-  },
-
-  // ── Quick Actions
-  quickActions: { gap: 10 },
-  quickBtn: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  quickIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  quickLabel: { fontSize: 14, fontWeight: "700", color: "#1a1a2e" },
-  quickDesc: { fontSize: 11, color: "#999", marginTop: 2 },
-
-  // ── Orders tab
-  emptyWrap: { alignItems: "center", paddingVertical: 40, gap: 10 },
-  emptyText: { fontSize: 14, color: "#bbb", fontWeight: "500" },
-  orderCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    marginBottom: 10,
-    flexDirection: "row",
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  orderAccent: { width: 4 },
-  orderBody: { flex: 1, padding: 14 },
-  orderTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  orderId: { fontSize: 13, fontWeight: "700", color: "#1a1a2e" },
-  orderBottom: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  orderDate: { fontSize: 11, color: "#999" },
-  orderPrice: { fontSize: 13, fontWeight: "700", color: "#1B4332" },
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  badgeText: { fontSize: 11, fontWeight: "700" },
-  lihatSemuaBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 4,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#1B4332",
-  },
-  lihatSemuaText: { fontSize: 13, fontWeight: "700", color: "#1B4332" },
-});

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import NfcManager, { NfcTech } from "react-native-nfc-manager";
+import { Colors, useTheme } from "../../context/ThemeContext";
 
 type ScanMode = "scan" | "search";
 
@@ -29,6 +30,9 @@ const normalizeUid = (value: unknown) => {
 };
 
 export default function NFCScanner({ onScanned }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [supported, setSupported] = useState<boolean | null>(null);
   const [scanning, setScanning] = useState<ScanMode | null>(null);
 
@@ -87,7 +91,7 @@ export default function NFCScanner({ onScanned }: Props) {
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.iconCircle}>
-          <Ionicons name="radio-outline" size={24} color="#1B4332" />
+          <Ionicons name="radio-outline" size={24} color={colors.accent} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Kelola Stok NFC</Text>
@@ -105,7 +109,7 @@ export default function NFCScanner({ onScanned }: Props) {
             styles.statusDot,
             {
               backgroundColor:
-                supported === null ? "#F59E0B" : supported ? "#2D6A4F" : "#E53935",
+                supported === null ? "#889988" : supported ? "#2D6A4F" : "#E53935",
             },
           ]}
         />
@@ -140,10 +144,10 @@ export default function NFCScanner({ onScanned }: Props) {
           disabled={!!scanning}
         >
           {scanning === "search" ? (
-            <ActivityIndicator color="#1B4332" />
+            <ActivityIndicator color={colors.accent} />
           ) : (
             <>
-              <Ionicons name="search-outline" size={18} color="#1B4332" />
+              <Ionicons name="search-outline" size={18} color={colors.accent} />
               <Text style={styles.secondaryText}>Cari Barang</Text>
             </>
           )}
@@ -153,64 +157,78 @@ export default function NFCScanner({ onScanned }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#E8F5E9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: { fontSize: 17, fontWeight: "900", color: "#1a1a2e" },
-  subtitle: { fontSize: 12, color: "#6B7280", lineHeight: 18, marginTop: 2 },
-  statusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8FAFB",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 14,
-    gap: 8,
-  },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: 12, color: "#4B5563", fontWeight: "700" },
-  buttonRow: { flexDirection: "row", gap: 10, marginTop: 14 },
-  primaryBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: "#1B4332",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  secondaryBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: "#E8F5E9",
-    borderWidth: 1,
-    borderColor: "#B7E4C7",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  disabledBtn: { opacity: 0.7 },
-  primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
-  secondaryText: { color: "#1B4332", fontSize: 13, fontWeight: "800" },
-});
+const createStyles = (colors: Colors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.08,
+      shadowOffset: { width: 0, height: 3 },
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+    iconCircle: {
+      width: 48,
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: colors.accentSoft,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    title: { fontSize: 17, fontWeight: "900", color: colors.text },
+    subtitle: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      lineHeight: 18,
+      marginTop: 2,
+    },
+    statusRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.surfaceAlt,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginTop: 14,
+      gap: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    statusDot: { width: 8, height: 8, borderRadius: 4 },
+    statusText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontWeight: "700",
+    },
+    buttonRow: { flexDirection: "row", gap: 10, marginTop: 14 },
+    primaryBtn: {
+      flex: 1,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: colors.accent,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    secondaryBtn: {
+      flex: 1,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: colors.accentSoft,
+      borderWidth: 1,
+      borderColor: colors.border,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    disabledBtn: { opacity: 0.7 },
+    primaryText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
+    secondaryText: { color: colors.accent, fontSize: 13, fontWeight: "800" },
+  });

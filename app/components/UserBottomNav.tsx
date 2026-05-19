@@ -19,8 +19,8 @@ type Props = {
 const tabs: {
   key: ActiveTab;
   route: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  activeIcon: keyof typeof Ionicons.glyphMap;
+  icon: string;
+  activeIcon: string;
 }[] = [
   {
     key: "home",

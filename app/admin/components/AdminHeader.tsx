@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StatusBar, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useTheme } from "../../context/ThemeContext";
 
 type Props = {
   title: string;
@@ -7,8 +8,15 @@ type Props = {
 };
 
 export default function AdminHeader({ title, onMenuPress }: Props) {
+  const { colors, isDark } = useTheme();
+  const headerBg = isDark ? colors.surfaceAlt : "#1B4332";
+
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { backgroundColor: headerBg, borderBottomColor: colors.border }]}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={headerBg}
+      />
       <TouchableOpacity style={styles.menuBtn} onPress={onMenuPress}>
         <View style={styles.bar} />
         <View style={[styles.bar, { width: 20 }]} />
@@ -28,7 +36,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 56,
     paddingBottom: 16,
-    backgroundColor: "#1B4332",
+    borderBottomWidth: 1,
   },
   menuBtn: {
     width: 40,

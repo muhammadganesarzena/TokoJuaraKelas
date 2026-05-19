@@ -1,25 +1,38 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
-import React from "react";
+import React, { useCallback } from "react";
 import {
-    Image,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Linking,
+  RefreshControl,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { useRefreshControl } from "../hooks/useRefreshControl";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { useHistory } from "../context/HistoryContext";
 import { useTheme } from "../context/ThemeContext";
 
-const ORANGE = "#E8622A";
+const ACCENT = "#2D6A4F";
 const formatRupiah = (amount: number) => "Rp " + amount.toLocaleString("id-ID");
 
 const HistoryDetail: React.FC = () => {
   const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { historyItems } = useHistory();
+  const { historyItems, completeOrder, refreshHistory } = useHistory();
+  const { refreshing, onRefresh } = useRefreshControl(refreshHistory);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshHistory();
+    }, [refreshHistory]),
+  );
+
   const item = historyItems.find((h) => h.id === id);
 
   if (!item) {
@@ -34,18 +47,55 @@ const HistoryDetail: React.FC = () => {
           },
         ]}
       >
-        <Text style={{ color: colors.textMuted }}>Order not found.</Text>
+        <Text style={{ color: colors.textMuted }}>Pesanan tidak ditemukan.</Text>
       </View>
     );
   }
 
-  const total = item.totalPrice + item.adminFee;
+  const isDelivery = item.fulfillmentType === "delivery";
+  const total = item.totalPrice + (item.shippingFee || 0);
+
+  const statusTitle =
+    item.status === "completed"
+      ? "Selesai"
+      : item.status === "delivering"
+        ? "Sedang dikirim"
+        : item.status === "ready_for_pickup"
+          ? "Siap diambil"
+          : item.status === "processing"
+            ? "Menunggu verifikasi"
+            : "Dibatalkan";
   const statusColor =
     item.status === "completed"
       ? "#34C759"
-      : item.status === "processing"
-        ? "#FF9500"
-        : "#FF3B30";
+      : item.status === "delivering"
+        ? "#7B1FA2"
+        : item.status === "ready_for_pickup"
+          ? "#F59E0B"
+          : item.status === "processing"
+            ? "#2D6A4F"
+            : "#FF3B30";
+
+  const handleCompleteDelivery = () => {
+    Alert.alert(
+      "Selesaikan Order",
+      "Pastikan barang sudah kamu terima sebelum menyelesaikan order.",
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Sudah diterima",
+          onPress: async () => {
+            try {
+              await completeOrder(item.id);
+              Alert.alert("Berhasil", "Order ditandai selesai.");
+            } catch {
+              Alert.alert("Gagal", "Status order belum bisa diperbarui.");
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -63,7 +113,7 @@ const HistoryDetail: React.FC = () => {
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Order Detail
+          Detail Pesanan
         </Text>
         <View style={{ width: 40 }} />
       </View>
@@ -71,6 +121,14 @@ const HistoryDetail: React.FC = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[ACCENT]}
+            tintColor={ACCENT}
+          />
+        }
       >
         <View
           style={[
@@ -82,19 +140,25 @@ const HistoryDetail: React.FC = () => {
             name={
               item.status === "completed"
                 ? "checkmark-circle"
-                : item.status === "processing"
-                  ? "time"
-                  : "close-circle"
+                : item.status === "delivering"
+                  ? "bicycle"
+                  : item.status === "ready_for_pickup"
+                    ? "bag-handle"
+                    : item.status === "processing"
+                      ? "time"
+                      : "close-circle"
             }
             size={28}
             color={statusColor}
           />
           <View style={{ marginLeft: 12 }}>
             <Text style={[styles.statusTitle, { color: statusColor }]}>
-              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+              {statusTitle}
             </Text>
             <Text style={[styles.statusSub, { color: colors.textMuted }]}>
-              Order #{item.refNumber.slice(-8)}
+              {item.status === "ready_for_pickup"
+                ? "Ambil barang di toko dengan kode pick up"
+                : `Order #${item.refNumber.slice(-8)}`}
             </Text>
           </View>
         </View>
@@ -105,7 +169,7 @@ const HistoryDetail: React.FC = () => {
         </Text>
 
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
-          Shipping
+          Pengiriman
         </Text>
         <View style={[styles.infoCard, { backgroundColor: colors.cardAlt }]}>
           <Text style={[styles.cardName, { color: colors.text }]}>
@@ -121,10 +185,37 @@ const HistoryDetail: React.FC = () => {
             {item.address}
             {item.city ? `, ${item.city}` : ""}
           </Text>
+          {item.houseNote ? (
+            <Text style={[styles.cardDetail, { color: colors.textSecondary }]}>
+              Catatan rumah: {item.houseNote}
+            </Text>
+          ) : null}
+          {item.fulfillmentType === "delivery" ? (
+            <>
+              <Text
+                style={[styles.cardDetail, { color: colors.textSecondary }]}
+              >
+                Jarak: {item.deliveryDistanceKm || "-"} km
+              </Text>
+              {item.deliveryLat && item.deliveryLng ? (
+                <TouchableOpacity
+                  style={styles.mapLink}
+                  onPress={() =>
+                    Linking.openURL(
+                      `https://www.google.com/maps?q=${item.deliveryLat},${item.deliveryLng}`,
+                    )
+                  }
+                >
+                  <Ionicons name="map-outline" size={16} color="#2D6A4F" />
+                  <Text style={styles.mapLinkText}>Lihat titik rumah</Text>
+                </TouchableOpacity>
+              ) : null}
+            </>
+          ) : null}
         </View>
 
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
-          Order Items
+          Item Pesanan
         </Text>
         {item.products.map((p, idx) => (
           <View
@@ -159,7 +250,7 @@ const HistoryDetail: React.FC = () => {
                 {p.productName}
               </Text>
               <Text style={[styles.orderQty, { color: colors.textMuted }]}>
-                Qty: {p.quantity}
+                Jml: {p.quantity}
               </Text>
             </View>
             <Text style={[styles.orderPrice, { color: colors.text }]}>
@@ -174,13 +265,12 @@ const HistoryDetail: React.FC = () => {
             { marginTop: 24, color: colors.textMuted },
           ]}
         >
-          Order Summary
+          Ringkasan Pesanan
         </Text>
         <View style={[styles.summaryCard, { backgroundColor: colors.cardAlt }]}>
           {[
             ["Subtotal", item.totalPrice],
-            ["Admin Fee", item.adminFee],
-            ["Shipping", 0],
+            ...(isDelivery ? [["Ongkir", item.shippingFee || 0] as const] : []),
           ].map(([label, val]) => (
             <View key={label as string} style={styles.summaryRow}>
               <Text
@@ -196,7 +286,7 @@ const HistoryDetail: React.FC = () => {
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <View style={styles.summaryRow}>
             <Text style={[styles.totalLabel, { color: colors.text }]}>
-              Total
+              Total Pembayaran
             </Text>
             <Text style={styles.totalValue}>{formatRupiah(total)}</Text>
           </View>
@@ -208,12 +298,12 @@ const HistoryDetail: React.FC = () => {
             { marginTop: 24, color: colors.textMuted },
           ]}
         >
-          Payment Info
+          Info Pembayaran
         </Text>
         <View style={[styles.infoCard, { backgroundColor: colors.cardAlt }]}>
           <View style={styles.payRow}>
             <Text style={[styles.payLabel, { color: colors.textMuted }]}>
-              Method
+              Metode
             </Text>
             <Text style={[styles.payValue, { color: colors.text }]}>
               {(item.paymentMethod || "QRIS").toUpperCase()}
@@ -221,7 +311,7 @@ const HistoryDetail: React.FC = () => {
           </View>
           <View style={styles.payRow}>
             <Text style={[styles.payLabel, { color: colors.textMuted }]}>
-              Ref Number
+              No. Referensi
             </Text>
             <Text style={[styles.payValue, { color: colors.text }]}>
               {item.refNumber}
@@ -229,25 +319,45 @@ const HistoryDetail: React.FC = () => {
           </View>
           <View style={styles.payRow}>
             <Text style={[styles.payLabel, { color: colors.textMuted }]}>
-              Kode Pick Up
+              {item.fulfillmentType === "delivery" ? "Status Antar" : "Kode Ambil di Toko"}
             </Text>
             <Text
               style={[
                 styles.payValue,
                 {
                   color:
-                    item.status === "completed" && item.pickupCode
+                    (item.status === "ready_for_pickup" ||
+                      item.status === "completed") &&
+                    item.pickupCode
                       ? "#2D6A4F"
                       : colors.textMuted,
                 },
               ]}
             >
-              {item.status === "completed" && item.pickupCode
-                ? item.pickupCode
-                : "Menunggu verifikasi admin"}
+              {item.fulfillmentType === "delivery"
+                ? item.status === "delivering"
+                  ? "Sedang dikirim"
+                  : item.status === "completed"
+                    ? "Selesai"
+                    : "Menunggu verifikasi admin"
+                : item.status === "ready_for_pickup" && item.pickupCode
+                  ? item.pickupCode
+                  : item.status === "completed"
+                    ? "Sudah diambil"
+                    : "Menunggu verifikasi admin"}
             </Text>
           </View>
         </View>
+
+        {item.fulfillmentType === "delivery" && item.status === "delivering" ? (
+          <TouchableOpacity
+            style={styles.completeBtn}
+            onPress={handleCompleteDelivery}
+          >
+            <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
+            <Text style={styles.completeBtnText}>Barang Sudah Sampai</Text>
+          </TouchableOpacity>
+        ) : null}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -298,12 +408,23 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderLeftWidth: 3,
-    borderLeftColor: ORANGE,
+    borderLeftColor: ACCENT,
     marginBottom: 20,
     gap: 3,
   },
   cardName: { fontSize: 15, fontWeight: "700" },
   cardDetail: { fontSize: 13 },
+  mapLink: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  mapLinkText: {
+    fontSize: 13,
+    color: "#2D6A4F",
+    fontWeight: "700",
+  },
   orderItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -333,7 +454,7 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 14, fontWeight: "600" },
   divider: { height: 1, marginVertical: 4 },
   totalLabel: { fontSize: 16, fontWeight: "700" },
-  totalValue: { fontSize: 18, fontWeight: "800", color: ORANGE },
+  totalValue: { fontSize: 18, fontWeight: "800", color: ACCENT },
   payRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -341,6 +462,17 @@ const styles = StyleSheet.create({
   },
   payLabel: { fontSize: 13 },
   payValue: { fontSize: 13, fontWeight: "600" },
+  completeBtn: {
+    marginTop: 18,
+    backgroundColor: "#2D6A4F",
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  completeBtnText: { color: "#FFF", fontSize: 15, fontWeight: "800" },
 });
 
 export default HistoryDetail;

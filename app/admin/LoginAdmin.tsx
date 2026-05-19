@@ -9,7 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { saveAdminSession } from "../../lib/adminSession";
+import KeyboardAwareScreen from "../components/KeyboardAwareScreen";
+import { goToAdminDashboard, saveAdminSession } from "../../lib/adminSession";
 import { supabase } from "../../lib/supabase";
 
 export default function LoginAdmin() {
@@ -19,7 +20,7 @@ export default function LoginAdmin() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert("Error", "Email dan Password wajib diisi.");
+      Alert.alert("Kesalahan", "Email dan kata sandi wajib diisi.");
       return;
     }
 
@@ -33,7 +34,7 @@ export default function LoginAdmin() {
         .single();
 
       if (error || !data) {
-        Alert.alert("Login Gagal", "Email atau Password admin salah.");
+        Alert.alert("Login Gagal", "Email atau kata sandi admin salah.");
         return;
       }
 
@@ -43,16 +44,20 @@ export default function LoginAdmin() {
         email: data.email,
         name: data.name || data.full_name,
       });
-      router.replace("/admin/overview");
+      goToAdminDashboard();
     } catch (error: any) {
-      Alert.alert("Error", error.message);
+      Alert.alert("Kesalahan", error.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAwareScreen
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      extraScrollHeight={32}
+    >
       <Text style={styles.title}>Admin Panel</Text>
       <Text style={styles.subtitle}>Toko Juara Kelas</Text>
 
@@ -67,12 +72,12 @@ export default function LoginAdmin() {
         autoCapitalize="none"
       />
 
-      <Text style={styles.label}>Password</Text>
+      <Text style={styles.label}>Kata Sandi</Text>
       <TextInput
         style={styles.input}
         value={password}
         onChangeText={setPassword}
-        placeholder="Password"
+        placeholder="Kata sandi"
         placeholderTextColor="#999"
         secureTextEntry
       />
@@ -95,7 +100,7 @@ export default function LoginAdmin() {
       >
         <Text style={styles.backText}>← Kembali ke Login User</Text>
       </TouchableOpacity>
-    </View>
+    </KeyboardAwareScreen>
   );
 }
 
@@ -103,13 +108,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#1a1a2e",
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: 28,
+    paddingVertical: 40,
   },
   title: {
     fontSize: 32,
     fontWeight: "800",
-    color: "#C85C2D",
+    color: "#2D6A4F",
     textAlign: "center",
     marginBottom: 4,
   },
@@ -136,7 +145,7 @@ const styles = StyleSheet.create({
     borderColor: "#3a3a5e",
   },
   button: {
-    backgroundColor: "#C85C2D",
+    backgroundColor: "#2D6A4F",
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: "center",

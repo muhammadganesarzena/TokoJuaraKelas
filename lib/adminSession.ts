@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
 
 const ADMIN_SESSION_KEY = "admin_session";
 
@@ -38,4 +39,12 @@ export const getAdminSession = async () => {
 
 export const clearAdminSession = async () => {
   await AsyncStorage.removeItem(ADMIN_SESSION_KEY);
+};
+
+/** Reset navigation stack lalu buka dashboard admin (hindari kembali ke /chat user). */
+export const goToAdminDashboard = () => {
+  if (typeof router.canDismiss === "function" && router.canDismiss()) {
+    router.dismissAll();
+  }
+  router.replace("/admin/overview");
 };

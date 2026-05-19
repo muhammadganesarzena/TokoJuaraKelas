@@ -13,14 +13,15 @@ import Ionicons from "react-native-vector-icons/Ionicons";
 import { useCart } from "../context/CartContext";
 import { useHistory } from "../context/HistoryContext";
 import { useTheme } from "../context/ThemeContext";
+import { FREE_DELIVERY_KM } from "../../lib/delivery";
 
-const ORANGE = "#E8622A";
+const ACCENT = "#2D6A4F";
 const formatRupiah = (amount: number) => "Rp " + amount.toLocaleString("id-ID");
 
 const OrderConfirmation: React.FC = () => {
   const { colors } = useTheme();
   const { cartItems, clearCart } = useCart();
-  const { addHistory } = useHistory();
+  const { refreshHistory } = useHistory();
   const savedRef = useRef(false);
 
   const params = useLocalSearchParams<{
@@ -29,50 +30,26 @@ const OrderConfirmation: React.FC = () => {
     pickupCode: string;
     paymentTime: string;
     totalPrice: string;
-    adminFee: string;
+    subtotal: string;
+    shippingFee: string;
     name: string;
     email: string;
     phone: string;
     fulfillmentType: string;
+    address: string;
+    houseNote: string;
+    distanceKm: string;
   }>();
 
-  const subtotal = Number(params.totalPrice) || 0;
-  const adminFee = Number(params.adminFee) || 0;
+  const subtotal = Number(params.subtotal || params.totalPrice) || 0;
+  const shippingFee = Number(params.shippingFee) || 0;
+  const fulfillmentType = params.fulfillmentType || "pickup";
 
   useEffect(() => {
     if (savedRef.current) return;
     savedRef.current = true;
-    addHistory({
-      id: params.refNumber || String(Date.now()),
-      refNumber: params.refNumber || String(Date.now()),
-      paymentTime: params.paymentTime || new Date().toLocaleString("id-ID"),
-      totalPrice: subtotal,
-      adminFee,
-      name: params.name || "Guest",
-      email: params.email || "-",
-      phone: params.phone || "-",
-      address: "Pick up di toko",
-      city: "-",
-      products: cartItems.map(({ product, quantity }) => ({
-        productId: product.id,
-        productName: product.name,
-        price: product.price,
-        quantity,
-        image: product.image,
-      })),
-      status: "processing",
-    });
-  }, [
-    addHistory,
-    adminFee,
-    cartItems,
-    params.email,
-    params.name,
-    params.paymentTime,
-    params.phone,
-    params.refNumber,
-    subtotal,
-  ]);
+    refreshHistory();
+  }, [refreshHistory]);
 
   const handleBackToShopping = () => {
     clearCart();
@@ -92,7 +69,7 @@ const OrderConfirmation: React.FC = () => {
           <Ionicons name="arrow-back" size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Order Confirmation
+          Konfirmasi Pesanan
         </Text>
         <View style={{ width: 40 }} />
       </View>
@@ -115,19 +92,20 @@ const OrderConfirmation: React.FC = () => {
         </View>
 
         <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-          Setelah pembayaran diterima, kode pick up akan aktif di history untuk
-          ditukarkan di toko. segera chat admin atau langsung konfirmasi di toko
-          untuk mengambil barang. Email:{" "}
+          {fulfillmentType === "delivery"
+            ? "Setelah pembayaran diterima, admin akan memproses order dan status akan berubah menjadi sedang dikirim."
+            : "Setelah pembayaran diterima, kode pick up akan aktif di history untuk ditukarkan di toko."}{" "}
+          Konfirmasi dan tagihan akan dikirim ke email:{" "}
           <Text style={{ fontWeight: "700", color: colors.text }}>
-            {params.email || "your email"}
-          </Text>{" "}
-          with your order confirmation and bill.
+            {params.email || "email kamu"}
+          </Text>
+          .
         </Text>
         <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-          Time placed: {params.paymentTime || "-"}
+          Waktu pesanan: {params.paymentTime || "-"}
         </Text>
 
-        {[{ title: "Pick Up" }].map(({ title }) => (
+        {[{ title: fulfillmentType === "delivery" ? "Antar" : "Ambil di Toko" }].map(({ title }) => (
           <React.Fragment key={title}>
             <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
               {title}
@@ -136,7 +114,7 @@ const OrderConfirmation: React.FC = () => {
               style={[styles.infoCard, { backgroundColor: colors.cardAlt }]}
             >
               <Text style={[styles.cardName, { color: colors.text }]}>
-                {params.name || "Guest"}
+                {params.name || "Pelanggan"}
               </Text>
               <Text
                 style={[styles.cardDetail, { color: colors.textSecondary }]}
@@ -151,14 +129,30 @@ const OrderConfirmation: React.FC = () => {
               <Text
                 style={[styles.cardDetail, { color: colors.textSecondary }]}
               >
-                Ambil langsung di toko setelah status order accepted.
+                {fulfillmentType === "delivery"
+                  ? params.address || "-"
+                  : "Ambil langsung di toko setelah pembayaran diverifikasi."}
               </Text>
+              {fulfillmentType === "delivery" && params.houseNote ? (
+                <Text
+                  style={[styles.cardDetail, { color: colors.textSecondary }]}
+                >
+                  Catatan rumah: {params.houseNote}
+                </Text>
+              ) : null}
+              {fulfillmentType === "delivery" && params.distanceKm ? (
+                <Text
+                  style={[styles.cardDetail, { color: colors.textSecondary }]}
+                >
+                  Jarak: {params.distanceKm} km
+                </Text>
+              ) : null}
             </View>
           </React.Fragment>
         ))}
 
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>
-          Order Items
+          Item Pesanan
         </Text>
         {cartItems.map(({ product, quantity }) => (
           <View
@@ -189,7 +183,7 @@ const OrderConfirmation: React.FC = () => {
                 {product.name}
               </Text>
               <Text style={[styles.orderQty, { color: colors.textMuted }]}>
-                Qty: {quantity}
+                Jml: {quantity}
               </Text>
             </View>
             <Text style={[styles.orderPrice, { color: colors.text }]}>
@@ -204,13 +198,14 @@ const OrderConfirmation: React.FC = () => {
             { marginTop: 24, color: colors.textMuted },
           ]}
         >
-          Order Summary
+          Ringkasan Pesanan
         </Text>
         <View style={[styles.summaryCard, { backgroundColor: colors.cardAlt }]}>
           {[
             ["Subtotal", subtotal],
-            ["Admin Fee", adminFee],
-            ["Shipping", 0],
+            ...(fulfillmentType === "delivery"
+              ? [["Ongkir", shippingFee] as const]
+              : []),
           ].map(([label, val]) => (
             <View key={label as string} style={styles.summaryRow}>
               <Text
@@ -223,13 +218,19 @@ const OrderConfirmation: React.FC = () => {
               </Text>
             </View>
           ))}
+          {fulfillmentType === "delivery" &&
+          Number(params.distanceKm) > FREE_DELIVERY_KM ? (
+            <Text style={[styles.infoText, { color: colors.textMuted }]}>
+              Ongkir: {Math.ceil(Number(params.distanceKm))} km x Rp2.500
+            </Text>
+          ) : null}
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <View style={styles.summaryRow}>
             <Text style={[styles.totalLabel, { color: colors.text }]}>
-              Total
+              Total Pembayaran
             </Text>
             <Text style={styles.totalValue}>
-              {formatRupiah(subtotal + adminFee)}
+              {formatRupiah(subtotal + shippingFee)}
             </Text>
           </View>
         </View>
@@ -246,11 +247,11 @@ const OrderConfirmation: React.FC = () => {
         ]}
       >
         <TouchableOpacity
-          style={[styles.backShopBtn, { borderColor: ORANGE }]}
+          style={[styles.backShopBtn, { borderColor: ACCENT }]}
           onPress={handleBackToShopping}
         >
-          <Text style={[styles.backShopText, { color: ORANGE }]}>
-            Back to Shopping
+          <Text style={[styles.backShopText, { color: ACCENT }]}>
+            Kembali Belanja
           </Text>
         </TouchableOpacity>
       </View>
@@ -302,7 +303,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     borderLeftWidth: 3,
-    borderLeftColor: ORANGE,
+    borderLeftColor: ACCENT,
     gap: 2,
   },
   cardName: { fontSize: 15, fontWeight: "700" },
@@ -329,7 +330,7 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 14, fontWeight: "600" },
   divider: { height: 1, marginVertical: 6 },
   totalLabel: { fontSize: 16, fontWeight: "700" },
-  totalValue: { fontSize: 18, fontWeight: "800", color: ORANGE },
+  totalValue: { fontSize: 18, fontWeight: "800", color: ACCENT },
   bottomBar: {
     borderTopWidth: 1,
     paddingHorizontal: 20,

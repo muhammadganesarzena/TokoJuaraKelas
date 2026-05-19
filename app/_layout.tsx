@@ -15,7 +15,11 @@ const TAB_ORDER = [
 ];
 
 const getTabIndex = (path: string): number =>
-  TAB_ORDER.findIndex((tab) => path.includes(tab.split("/")[1]));
+  TAB_ORDER.findIndex((tab) => {
+    if (tab === "/chat") return path === "/chat";
+    const segment = tab.split("/").filter(Boolean)[0];
+    return path.includes(`/${segment}`);
+  });
 
 type AnimationType = "slide_from_right" | "slide_from_left" | "fade";
 
@@ -107,30 +111,7 @@ export default function RootLayout() {
                   name="Profile/EditProfile"
                   options={{ animation: "slide_from_right" }}
                 />
-                <Stack.Screen
-                  name="admin/overview"
-                  options={{ animation: "fade" }}
-                />
-                <Stack.Screen
-                  name="admin/products"
-                  options={{ animation: "fade" }}
-                />
-                <Stack.Screen
-                  name="admin/categories"
-                  options={{ animation: "fade" }}
-                />
-                <Stack.Screen
-                  name="admin/orders"
-                  options={{ animation: "fade" }}
-                />
-                <Stack.Screen
-                  name="admin/users"
-                  options={{ animation: "fade" }}
-                />
-                <Stack.Screen
-                  name="admin/chat"
-                  options={{ animation: "fade" }}
-                />
+                <Stack.Screen name="admin" options={{ animation: "fade" }} />
               </Stack>
             </HistoryProvider>
           </CartProvider>
